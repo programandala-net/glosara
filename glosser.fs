@@ -7,7 +7,7 @@
 \ This file is part of Solo Forth
 \ http://programandala.net/en.program.solo_forth.html
 
-s" 201511261904" 2constant version
+: version  ( -- ca len )  s" 201511262012" ;
 
 \ ==============================================================
 \ Description
@@ -44,12 +44,17 @@ s" 201511261904" 2constant version
 \
 \ 2015-11-26: First working version: the glossary entries are
 \ extracted from the sources of Solo Forth, ordered and joined
-\ into a glossary file.
+\ into a glossary file. Added an argument parser.
 
 \ ==============================================================
 \ Requirements
 
 forth-wordlist set-current
+
+\ From Forth Foundation Library
+\ (http://irdvo.github.io/ffl/)
+
+include ffl/arg.fs  \ argument parser
 
 \ From the Galope library
 \ (http://programandala.net/en.program.galope.html)
@@ -62,8 +67,18 @@ require galope/string-slash.fs
 \ ==============================================================
 \ Config
 
+variable verbose      \ flag: verbose mode? \ XXX not used yet
+variable options      \ counter: valid options on the command line
+
 s" /tmp/" 2constant temp-directory
 s" .glossary_entry" 2constant entry-filename-extension
+
+\ ==============================================================
+\ Misc
+
+: echo  ( ca len -- )
+  verbose @ if  type cr  else  2drop  then  ;
+  \ print the string _ca len_ if `verbose` is on
 
 \ ==============================================================
 \ Source interpreter
@@ -109,6 +124,7 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   \ is the given string the end of a glossary entry?
 
 0 value entry-fid
+2variable output-filename  \ filename
 
 : create-entry-file  ( ca len -- )
   w/o create-file throw  to entry-fid  ;
@@ -128,8 +144,6 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   close-entry-file set-source-order  ;
   \ end of the current glossary entry
 
-  \ XXX TODO
-  \
 : c>hex  ( c -- ca len )
   base @ >r hex  s>d <# # # #>  r> base !  ;
   \ convert a character to a 2-char string with its hex value
@@ -157,8 +171,9 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   \ numbers that represent the characters of the entry name.
 
 : new-entry  ( ca len -- )
-  entryname>filename create-entry-file  
-  s" == " >entry-file  ;
+  entryname>filename create-entry-file
+  s" == " >entry-file  
+  ;
   \ start a new entry, creating its output file
 
 : get-entry-line  ( "text<eol>" -- )
@@ -170,7 +185,7 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   save-input parse-name
   \ ~~ ." parsed: " 2dup type cr key drop  \ XXX INFORMER
   2dup end-of-glossary-entry?
-  if  2drop restore-input end-of-glossary-entry exit  then
+  if  2drop restore-input throw end-of-glossary-entry exit  then
   dup 0<> entry-fid 0= and
   if  new-entry  else  2drop  then
   restore-input throw  get-entry-line  ;
@@ -209,7 +224,7 @@ forth-wordlist set-current
 : parse-current-source  ( -- )
   begin  refill  while
     begin  parse-name dup  while
-      \ 2dup ." <" type ." > " \ key drop  \ XXX INFORMER
+      \ ~~ 2dup ." <" type ." > " key drop  \ XXX INFORMER
       find-name ?dup if  name>int execute  then
     repeat  2drop
   repeat  ;
@@ -233,9 +248,90 @@ forth-wordlist set-current
   \ set the proper word list for the source file _ca len_
 
 : parse-source-file  ( ca len -- )
-  2dup set-wordlists  r/o open-file throw  parse-file  ;
+  2dup set-wordlists  r/o open-file throw
+  dup parse-file
+  close-file  \ XXX FIXME double free or corruption error
+  throw  ;
   \ extract the glossary information from file _ca len_ and
   \ print it to standard output
+
+
+\ ==============================================================
+\ Argument parser
+
+\ Create a new argument parser
+s" glosser"  \ name
+s" [ OPTION | INPUT-FILE ] ..."  \ usage
+version
+s" Written in Forth with Gforth by Marcos Cruz (programandala.net)" \ extra
+arg-new constant arguments
+
+\ Add the default options
+arguments arg-add-help-option
+arguments arg-add-version-option
+
+\ Add the verbose option
+4 constant arg.verbose-option
+char v  \ short option
+s" verbose"  \ long option
+s" activate verbose mode"  \ description
+true  \ switch type
+arg.verbose-option arguments arg-add-option
+
+\ Add the output option
+5 constant arg.output-option
+char o  \ short option
+s" output"  \ long option
+s" set the output file"  \ description
+false  \ switch type
+arg.output-option arguments arg-add-option
+
+: help  ( -- )
+  \ Show the help
+  arguments arg-print-help  ;
+
+: aid  ( -- )
+  options @ ?exit  help  ;
+  \ show the help if no option was specified
+
+: verbose-option  ( -- )
+  verbose on  s" Verbose mode is on" echo  ;
+
+: input-file  ( ca len -- )
+  s" Processing " 2over s+ echo  parse-source-file  ;
+
+: output-option  ( ca len -- )
+  output-filename @ 0<> abort ." More than one output file specified"
+  output-filename 2!  ;
+
+: version-option  ( -- )
+  arguments arg-print-version  ;
+
+: option  ( n -- )
+  1 options +!
+  case
+    arg.help-option       of  help              endof
+    arg.version-option    of  version-option    endof
+    arg.output-option     of  output-option     endof
+    arg.verbose-option    of  verbose-option    endof
+    arg.non-option        of  input-file        endof
+  endcase  ;
+
+: option?  ( -- n f )
+  arguments arg-parse  dup arg.done <> over arg.error <> and  ;
+  \ parse the next option. is it right?
+
+\ ==============================================================
+\ Boot
+
+: init  ( -- )
+  delete-temp-files
+  argc off  options off  verbose off  ;
+
+: run  ( -- )
+  init  begin  option?  while  option  repeat  drop  aid  ;
+
+0 [if]  \ XXX OLD
 
 : about  ( -- )
   ." glosser" cr
@@ -249,16 +345,12 @@ forth-wordlist set-current
   ."   glosser.fs input_file" cr cr
   ." The input file may be a Forth source or a Z80 source." cr  ;
 
-: input-files  ( -- n )
-  argc @ 1-  ;
-  \ number of input files in the command line
-
 : parse-source-files  ( n -- )
   0 do  i 1+ arg parse-source-file  loop  argc off  ;
 
 : join-entries  ( -- )
-  s" cat  " entry-files-pattern  s+ 
-  s"  > /tmp/glossary.adoc" s+ system  ;
+  s" cat  " entry-files-pattern  s+
+  s"  > " s+ output-filename 2@ s+ system  ;
   \ XXX TMP
   \ XXX TODO
 
@@ -268,11 +360,16 @@ forth-wordlist set-current
 
 : glossary  ( n -- )
   delete-temp-files parse-source-files create-glossary-file  ;
-  \ create a glossary of entries extracted from _n_ parameter files
+  create a glossary of entries extracted from _n_ parameter files
 
+: input-files  ( -- n )
+  argc @ 1-  ;
+  \ number of input files in the command line
 : run  ( -- )
   input-files ?dup
   if  glossary  else  about  then  set-normal-order  ;
+
+[endif]
 
 run bye
 
