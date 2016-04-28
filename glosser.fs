@@ -1,13 +1,13 @@
 #! /usr/bin/env gforth
 
-\ glosser
+\ glosser.fs
 
 \ XXX UNDER DEVELOPMENT
 
 \ This file is part of Solo Forth
 \ http://programandala.net/en.program.solo_forth.html
 
-s" 20151105" 2constant version
+s" 20151125" 2constant version
 
 \ ==============================================================
 \ Description
@@ -39,146 +39,173 @@ s" 20151105" 2constant version
 \
 \ 2015-11-04: Renamed to "glosser". Some changes. Deferred
 \ vocabularies for parsing.
+\
+\ 2015-11-25: First draft.
 
 \ ==============================================================
 \ Requirements
 
-forth definitions
+forth-wordlist set-current
 
 \ From the Galope library
 \ (http://programandala.net/en.program.galope.html)
 
 require galope/unslurp-file.fs
 require galope/minus-extension.fs
+require galope/string-suffix-question.fs
 
 \ ==============================================================
 \ Source interpreter
 
-: glossary-line  ( "text<eol>" -- )  ;
+0 value extract-wordlist  ( -- wid )
+  \ words recognized during the interpretation of
+  \ a source file
 
-defer extract-wordlist
+0 value entry-wordlist  ( -- wid )
+  \ words recognized during the interpretation of
+  \ a glossary entry in a source file
 
-wordlist constant forth-extract-wordlist
-  \ it holds the only word recognized during the interpretation of
+wordlist constant forth-extract-wordlist  ( -- wid )
+  \ words recognized during the interpretation of
   \ a Forth source file
 
-wordlist constant z80-extract-wordlist
-  \ it holds the only word recognized during the interpretation of
+wordlist constant z80-extract-wordlist  ( -- wid )
+  \ words recognized during the interpretation of
   \ a Z80 source file
 
-defer entry-wordlist
-
-wordlist constant forth-entry-wordlist
-  \ it holds the words recognized during the interpretation of
+wordlist constant forth-entry-wordlist  ( -- wid )
+  \ words recognized during the interpretation of
   \ a glossary entry in a Forth source file
 
-wordlist constant z80-entry-wordlist
-  \ it holds the words recognized during the interpretation of
+wordlist constant z80-entry-wordlist  ( -- wid )
+  \ words recognized during the interpretation of
   \ a glossary entry in a Z80 source file
+
+: end-of-glossary-entry?  ( ca len -- f )
+  cr ." End of entry? " 2dup type key drop  \ XXX INFORMER
+  s" }doc" str=  ;
+  \ is the given string the end of a glossary entry?
+
+: end-of-glossary-entry  ( -- )
+  cr ." End of entry -- press any key" key drop  \ XXX INFORMER
+  0 parse 2drop  \ discard the rest of the line
+  extract-wordlist >order seal  ;
+
+: glossary-line  ( "text<eol>" -- )
+  parse-name 2dup end-of-glossary-entry?
+  if    2drop end-of-glossary-entry
+  else  type space 0 parse type
+  then  ;
+  \ parse and type a glossary line
+
+: (doc{)  ( -- )
+  entry-wordlist >order seal  ;
+  \ start a glossary entry
+
+\ ----------------------------------------------
 
 forth-extract-wordlist set-current
 
 : doc{  ( -- )
-  \ Start of glossary entry.
-  ;
+  \ cr ." Entry found -- press any key" key drop  \ XXX INFORMER
+  (doc{)  ;
+  \ start a glossary entry
+
+\ ----------------------------------------------
 
 z80-extract-wordlist set-current
 
 : doc{  ( -- )
-  \ Start of glossary entry.
-  ;
+  cr ." Entry found -- press any key" key drop  \ XXX INFORMER
+  (doc{)  ;
+  \ start a glossary entry
+
+\ ----------------------------------------------
 
 forth-entry-wordlist set-current
 
 : \  ( "text<eol>"  -- )  glossary-line  ;
-  \ Start of line of glossary entry.
+  \ start of glossary line
 
-: }doc  ( -- )  (}doc)  ;
-  \ End of glossary entry.
+\ ----------------------------------------------
 
 z80-entry-wordlist set-current
 
 : ;  ( "text<eol>"  -- )  glossary-line  ;
   \ Start of line of glossary entry.
 
-: }doc  ( -- )  (}doc)  ;
-  \ End of glossary entry.
-
-forth-wordlist set-current
-
-: (parse-source)  ( -- )
-  \ Parse the current source.
-  begin   parse-name ?dup
-  while   find-name ?dup if  name>int execute  then
-  repeat  drop
-  ;
-: parse-source  ( ca len -- )
-  ['] (parse-source) execute-parsing
-  ;
-
-  \ XXX TODO
-
-: restore-order  ( -- )  only forth also glosser  ;
-
-: parse-source?  ( ca len -- wf )
-  \ Parse a give source.
-  \ ca len = source
-  \ wf = no error?
-  \
-  extract-wordlist seal
-  ['] parse-source catch
-  dup if  nip nip  then  \ fix the stack
-  dup ?wrong 0=
-  restore-order
-  no_parsing_error_left? and
-  ;
-
-
 \ ==============================================================
 \ File converter
 
-forth definitions
+forth-wordlist set-current
 
-: working-dir  ( -- ca len )
-  \ Current working directory.
-  s" PWD" getenv
-  ;
-: working-dir+  ( ca1 len1 -- ca2 len2 )
-  \ Add the current working directory to a file name.
-  working-dir s" /" s+ 2swap s+
-  ;
-: save-scr  ( ca len -- )
-  \ Save the SCR buffer to the output file.
-  \ ca len = input file name
-  -extension s" .scr" s+ zxscr /zxscr 2swap unslurp-file
-  ;
-: (glosser)  ( ca len -- )
-  \ ca len = input file name
-  2>r  get-order
-  init-zxscr adoc-wordlist >order seal
-  2r@ working-dir+ included
-  set-order  2r> save-scr
-  ;
+: z80-source-file?  ( ca len -- f )
+  2dup s" .z80s" string-suffix? if  2drop true exit  then
+       s" .asm" string-suffix? if  true exit  then
+  false  ;
+  \ is the filename _ca len_ a Z80 source?
+  \ if not, it's supposed to be a Forth source
+
+: (parse-source)  ( -- )
+  begin   parse-name
+          \ 2dup type space  \ XXX INFORMER
+          dup
+  while   find-name ?dup if  name>int execute  then
+  repeat  2drop  ;
+  \ parse the current source
+
+: restore-order  ( -- )
+  only forth  ;
+
+: parse-source  ( ca len -- )
+  extract-wordlist >order seal
+  ['] (parse-source) execute-parsing
+  restore-order  ;
+
+: get-wordlists  ( ca len -- wid1 wid2 )
+  z80-source-file?
+  if    z80-extract-wordlist z80-entry-wordlist
+  else  forth-extract-wordlist forth-entry-wordlist
+  then  ;
+  \ return the proper wordlist for the source file _ca len_
+
+: set-wordlists  ( ca len -- )
+  get-wordlists  to entry-wordlist  to extract-wordlist  ;
+  \ set the proper wordlist for the source file _ca len_
+
+: parse-source-file  ( ca len -- )
+  2dup set-wordlists  slurp-file parse-source  ;
+  \ get the contents of the source file _ca len_, extract the
+  \ glossary information and print it to standard output
+
+: glosser  ( ca len -- )
+  \ ." About to parse " 2dup type cr  \ XXX INFORMER
+  \ ." Press any key" key drop  \ XXX INFORMER
+  2>r  get-order  2r> parse-source-file  set-order  ;
+  \ extract the glossary information from the source file
+  \ _ca len_ and print it to standard output
+
 : about  ( -- )
   ." glosser" cr
-  ." Forth source to glossary document converter" cr
+  ." Forth source to glossary converter" cr
   ." Version " version type cr
   ." http://programandala.net/en.program.solo_forth.html" cr cr
   ." Copyright (C) 2015 Marcos Cruz (programandala.net)" cr cr
   ." Usage:" cr
-  ."   glossary input_file" cr
+  ."   glosser input_file" cr
   ." Or (depending on the installation method):" cr
   ."   glosser.fs input_file" cr cr
-  ." The input file may be a Forth source or a Z80 source." cr
-  ;
-: input-files  ( -- n )
-  \ Number of input files in the command line.
-  argc @ 1-
-  ;
-: glosser  ( -- )
-  input-files ?dup
-  if    0 do  i 1+ arg (glosser)  loop
-  else  about  then
-  ;
+  ." The input file may be a Forth source or a Z80 source." cr  ;
 
-glosser bye
+: input-files  ( -- n )
+  argc @ 1-  ;
+  \ number of input files in the command line
+
+: run  ( -- )
+  input-files ?dup
+  if    0 do  i 1+ arg glosser  loop
+  else  about  then  ;
+
+run
+
+\ vim: textwidth:64
