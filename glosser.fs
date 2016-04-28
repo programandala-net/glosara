@@ -81,7 +81,7 @@ s" .glossary_entry" 2constant entry-filename-extension
   \ print the string _ca len_ if `verbose` is on
 
 \ ==============================================================
-\ Source interpreter
+\ Word lists
 
 : set-normal-order  ( -- )
   only forth  ;
@@ -118,10 +118,8 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   \ words recognized during the interpretation of
   \ a glossary entry in a Z80 source file
 
-: end-of-glossary-entry?  ( ca len -- f )
-  \ cr ." End of entry? " 2dup type key drop  \ XXX INFORMER
-  s" }doc" str=  ;
-  \ is the given string the end of a glossary entry?
+\ ==============================================================
+\ Files
 
 0 value entry-fid
 2variable output-filename  \ filename
@@ -138,12 +136,6 @@ wordlist constant z80-entry-wordlist  ( -- wid )
 : >entry-file-line  ( ca len -- )
   entry-fid ?dup if  write-line throw  else  2drop  then  ;
 
-: end-of-glossary-entry  ( -- )
-  \ cr ." End of entry -- press any key" key drop  \ XXX INFORMER
-  0 parse 2drop  \ discard the rest of the line
-  close-entry-file set-source-order  ;
-  \ end of the current glossary entry
-
 : c>hex  ( c -- ca len )
   base @ >r hex  s>d <# # # #>  r> base !  ;
   \ convert a character to a 2-char string with its hex value
@@ -155,7 +147,7 @@ wordlist constant z80-entry-wordlist  ( -- wid )
 
 : entry-files-pattern  ( -- ca len )
   temp-directory s" *" s+ entry-filename-extension s+  ;
-  \ wildcard patter for all temporary entry files
+  \ wildcard pattern for all temporary entry files
 
 : delete-temp-files  ( -- )
   entry-files-pattern  s" rm -f " 2swap s+ system  ;
@@ -170,10 +162,23 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   \ temporary filename. the base filename consists of 31 8-bit hex
   \ numbers that represent the characters of the entry name.
 
+\ ==============================================================
+\ Glossary entries
+
+: end-of-glossary-entry?  ( ca len -- f )
+  \ cr ." End of entry? " 2dup type key drop  \ XXX INFORMER
+  s" }doc" str=  ;
+  \ is the given string the end of a glossary entry?
+
+: end-of-glossary-entry  ( -- )
+  \ cr ." End of entry -- press any key" key drop  \ XXX INFORMER
+  0 parse 2drop  \ discard the rest of the line
+  close-entry-file set-source-order  ;
+  \ end of the current glossary entry
+
 : new-entry  ( ca len -- )
   entryname>filename create-entry-file
-  s" == " >entry-file  
-  ;
+  s" == " >entry-file  ;
   \ start a new entry, creating its output file
 
 : get-entry-line  ( "text<eol>" -- )
@@ -191,13 +196,10 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   restore-input throw  get-entry-line  ;
   \ parse and type a line of glossary entry
 
-\ ----------------------------------------------
+\ ==============================================================
+\ Interface
 
 forth-extract-wordlist set-current
-: doc{  ( -- )  set-entry-order  ;
-  \ start a glossary entry
-
-z80-extract-wordlist set-current
 : doc{  ( -- )  set-entry-order  ;
   \ start a glossary entry
 
@@ -205,12 +207,16 @@ forth-entry-wordlist set-current
 : \  ( "text<eol>"  -- )  entry-line  ;
   \ start of glossary entry line in a Forth source
 
+z80-extract-wordlist set-current
+: doc{  ( -- )  set-entry-order  ;
+  \ start a glossary entry
+
 z80-entry-wordlist set-current
 : ;  ( "text<eol>"  -- )  entry-line  ;
   \ start of glossary entry line in a Z80 source
 
 \ ==============================================================
-\ File converter
+\ Parser
 
 forth-wordlist set-current
 
@@ -245,7 +251,7 @@ forth-wordlist set-current
 
 : set-wordlists  ( ca len -- )
   get-wordlists  to entry-wordlist  to extract-wordlist  ;
-  \ set the proper word list for the source file _ca len_
+  \ set the proper word lists for the source file _ca len_
 
 : parse-source-file  ( ca len -- )
   2dup set-wordlists  r/o open-file throw
@@ -254,7 +260,6 @@ forth-wordlist set-current
   throw  ;
   \ extract the glossary information from file _ca len_ and
   \ print it to standard output
-
 
 \ ==============================================================
 \ Argument parser
