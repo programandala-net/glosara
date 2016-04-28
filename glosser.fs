@@ -7,7 +7,7 @@
 \ This file is part of Solo Forth
 \ http://programandala.net/en.program.solo_forth.html
 
-s" 20151125" 2constant version
+s" 201511261904" 2constant version
 
 \ ==============================================================
 \ Description
@@ -42,9 +42,9 @@ s" 20151125" 2constant version
 \
 \ 2015-11-25: First draft.
 \
-\ 2015-11-26: First working version: the glossaries are created
-\ from the sources of Solo Forth. Now the entries must be
-\ ordered.
+\ 2015-11-26: First working version: the glossary entries are
+\ extracted from the sources of Solo Forth, ordered and joined
+\ into a glossary file.
 
 \ ==============================================================
 \ Requirements
@@ -57,15 +57,19 @@ forth-wordlist set-current
 require galope/unslurp-file.fs
 require galope/minus-extension.fs
 require galope/string-suffix-question.fs
+require galope/string-slash.fs
+
+\ ==============================================================
+\ Config
+
+s" /tmp/" 2constant temp-directory
+s" .glossary_entry" 2constant entry-filename-extension
 
 \ ==============================================================
 \ Source interpreter
 
 : set-normal-order  ( -- )
   only forth  ;
-
-2variable entry-name  \ XXX TODO -- not used yet
-  \ string of the glossary entry name
 
 0 value extract-wordlist  ( -- wid )
   \ words recognized during the interpretation of
@@ -104,12 +108,25 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   s" }doc" str=  ;
   \ is the given string the end of a glossary entry?
 
+0 value entry-fid
+
+: create-entry-file  ( ca len -- )
+  w/o create-file throw  to entry-fid  ;
+
+: close-entry-file  ( -- )
+  entry-fid close-file throw  0 to entry-fid  ;
+
+: >entry-file  ( ca len -- )
+  entry-fid write-file throw  ;
+
+: >entry-file-line  ( ca len -- )
+  entry-fid ?dup if  write-line throw  else  2drop  then  ;
+
 : end-of-glossary-entry  ( -- )
   \ cr ." End of entry -- press any key" key drop  \ XXX INFORMER
   0 parse 2drop  \ discard the rest of the line
-  set-source-order  
-  \ ~~ cr ." end of entry " order key drop \ XXX INFORMER
-  ;
+  close-entry-file set-source-order  ;
+  \ end of the current glossary entry
 
   \ XXX TODO
   \
@@ -122,59 +139,58 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   \ _ca2 len2_ consists of the hex values of the characters of
   \ _ca1 len1_ (one 2-digit hex number per original character)
 
-: empty-entry-name?  ( -- f )
-  entry-name 2@ or 0=  ;
-  \ is the name of the current entry empty?
+: entry-files-pattern  ( -- ca len )
+  temp-directory s" *" s+ entry-filename-extension s+  ;
+  \ wildcard patter for all temporary entry files
 
-: set-entry-name  ( ca len -- )
-  \ XXX FIXME -- empty string!
-  2dup cr ." ENTRY=" type cr key drop \ XXX INFORMER
-  save-mem entry-name 2!  ;
-  \ set the name of the current entry
+: delete-temp-files  ( -- )
+  entry-files-pattern  s" rm -f " 2swap s+ system  ;
+  \ delete all temporary entry files
 
-: valid-entry-line  ( ca len -- )
-  empty-entry-name? if  2dup set-entry-name  then
-  type space 0 parse type cr  ;
-  \ print a valid line of the entry, whose first 
-  \ word _ca len_ has been already parsed
+: entryname>filename  ( ca1 len1 -- ca2 len2 )
+  s" 000000000000000000000000000000000000000000000000000000000000"
+  2swap string>hex s+ 62 string/
+  entry-filename-extension s+
+  temp-directory 2swap s+  ;
+  \ convert the name of a glossary entry (a Forth word) to its
+  \ temporary filename. the base filename consists of 31 8-bit hex
+  \ numbers that represent the characters of the entry name.
+
+: new-entry  ( ca len -- )
+  entryname>filename create-entry-file  
+  s" == " >entry-file  ;
+  \ start a new entry, creating its output file
+
+: get-entry-line  ( "text<eol>" -- )
+  \ ." valid-entry-line: " 2dup type ~~ cr key drop  \ XXX INFORMER
+  0 parse >entry-file-line cr  ;
+  \ parse a line of the current entry and write it to its file
 
 : entry-line  ( "text<eol>" -- )
-  parse-name ~~ 2dup end-of-glossary-entry?
-  ~~
-  if    2drop end-of-glossary-entry
-  else  ~~ valid-entry-line  then  ;
+  save-input parse-name
+  \ ~~ ." parsed: " 2dup type cr key drop  \ XXX INFORMER
+  2dup end-of-glossary-entry?
+  if  2drop restore-input end-of-glossary-entry exit  then
+  dup 0<> entry-fid 0= and
+  if  new-entry  else  2drop  then
+  restore-input throw  get-entry-line  ;
   \ parse and type a line of glossary entry
-
-: start-entry  ( -- )
-  0. entry-name 2!  \ empty the entry name
-  set-entry-order  ;
-  \ start a glossary entry
 
 \ ----------------------------------------------
 
 forth-extract-wordlist set-current
-
-: doc{  ( -- )  start-entry  ;
+: doc{  ( -- )  set-entry-order  ;
   \ start a glossary entry
-
-\ ----------------------------------------------
 
 z80-extract-wordlist set-current
-
-: doc{  ( -- )  start-entry  ;
+: doc{  ( -- )  set-entry-order  ;
   \ start a glossary entry
 
-\ ----------------------------------------------
-
 forth-entry-wordlist set-current
-
 : \  ( "text<eol>"  -- )  entry-line  ;
   \ start of glossary entry line in a Forth source
 
-\ ----------------------------------------------
-
 z80-entry-wordlist set-current
-
 : ;  ( "text<eol>"  -- )  entry-line  ;
   \ start of glossary entry line in a Z80 source
 
@@ -190,18 +206,18 @@ forth-wordlist set-current
   \ is the filename _ca len_ a Z80 source?
   \ if not, it's supposed to be a Forth source
 
-: (parse-file)  ( -- )
+: parse-current-source  ( -- )
   begin  refill  while
     begin  parse-name dup  while
       \ 2dup ." <" type ." > " \ key drop  \ XXX INFORMER
       find-name ?dup if  name>int execute  then
     repeat  2drop
   repeat  ;
-  \ parse the current file
+  \ parse the current source file
 
 : parse-file  ( fid -- )
   set-source-order
-  ['] (parse-file) execute-parsing-file
+  ['] parse-current-source execute-parsing-file
   set-normal-order  ;
   \ parse the file _fid_
 
@@ -237,11 +253,27 @@ forth-wordlist set-current
   argc @ 1-  ;
   \ number of input files in the command line
 
+: parse-source-files  ( n -- )
+  0 do  i 1+ arg parse-source-file  loop  argc off  ;
+
+: join-entries  ( -- )
+  s" cat  " entry-files-pattern  s+ 
+  s"  > /tmp/glossary.adoc" s+ system  ;
+  \ XXX TMP
+  \ XXX TODO
+
+: create-glossary-file  ( -- )
+  \ XXX TODO header
+  join-entries  ;
+
+: glossary  ( n -- )
+  delete-temp-files parse-source-files create-glossary-file  ;
+  \ create a glossary of entries extracted from _n_ parameter files
+
 : run  ( -- )
   input-files ?dup
-  if    0 do  i 1+ arg parse-source-file  loop  argc off
-  else  about  then  set-normal-order  ;
+  if  glossary  else  about  then  set-normal-order  ;
 
-run 
+run bye
 
-\ vim: textwidth:64
+\ vim: textwidth=64
