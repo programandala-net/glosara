@@ -1,50 +1,34 @@
 #! /usr/bin/env gforth
 
-\ glosser.fs
+\ glosara.fs
 
 \ XXX UNDER DEVELOPMENT
 
-\ This file is part of Solo Forth
-\ http://programandala.net/en.program.solo_forth.html
-
-: version  ( -- ca len )  s" 201511262012" ;
+: version  s" 0.1.0+201604282351" ;
 
 \ ==============================================================
 \ Description
 
-\ glosser is a command line tool that extracts the glossary
-\ documentation from the Solo Forth sources, and creates a glossary
-\ document in the Asciidoctor format.
+\ Glosara is a command line tool that extracts the glossary
+\ documentation out of Forth sources, and creates a glossary
+\ document in Asciidoctor format.
+
+\ Glosara is written in Forth with Gforth
+\ (http://gnu.org/software/gforth).
 
 \ ==============================================================
 \ Author and license
 
-\ Copyright (C) 2015 Marcos Cruz (programandala.net)
+\ Copyright (C) 2015, 2016 Marcos Cruz (programandala.net)
 
-\ You may do whatever you want with this work, so long as you retain
-\ the copyright notice(s) and this license in all redistributed copies
-\ and derived works. There is no warranty.
-
-\ ==============================================================
-\ Acknowledgements
-
-\ glosser is written in Forth with Gforth 0.7.3 (by Anton Ertl,
-\ Bernd Paysan et al.):
-\   http://gnu.org/software/gforth
+\ You may do whatever you want with this work, so long as you
+\ retain the copyright notices and this license in all
+\ redistributed copies and derived works. There is no warranty.
 
 \ ==============================================================
 \ History
 
-\ 2015-09-25: Start.
-\
-\ 2015-11-04: Renamed to "glosser". Some changes. Deferred
-\ vocabularies for parsing.
-\
-\ 2015-11-25: First draft.
-\
-\ 2015-11-26: First working version: the glossary entries are
-\ extracted from the sources of Solo Forth, ordered and joined
-\ into a glossary file. Added an argument parser.
+\ See at the end of the file.
 
 \ ==============================================================
 \ Requirements
@@ -265,10 +249,10 @@ forth-wordlist set-current
 \ Argument parser
 
 \ Create a new argument parser
-s" glosser"  \ name
+s" Glosara"  \ name
 s" [ OPTION | INPUT-FILE ] ..."  \ usage
 version
-s" Written in Forth with Gforth by Marcos Cruz (programandala.net)" \ extra
+s" Written in Forth by Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
 \ Add the default options
@@ -336,46 +320,24 @@ arg.output-option arguments arg-add-option
 : run  ( -- )
   init  begin  option?  while  option  repeat  drop  aid  ;
 
-0 [if]  \ XXX OLD
-
-: about  ( -- )
-  ." glosser" cr
-  ." Forth source to glossary converter" cr
-  ." Version " version type cr
-  ." http://programandala.net/en.program.solo_forth.html" cr cr
-  ." Copyright (C) 2015 Marcos Cruz (programandala.net)" cr cr
-  ." Usage:" cr
-  ."   glosser input_file" cr
-  ." Or (depending on the installation method):" cr
-  ."   glosser.fs input_file" cr cr
-  ." The input file may be a Forth source or a Z80 source." cr  ;
-
-: parse-source-files  ( n -- )
-  0 do  i 1+ arg parse-source-file  loop  argc off  ;
-
-: join-entries  ( -- )
-  s" cat  " entry-files-pattern  s+
-  s"  > " s+ output-filename 2@ s+ system  ;
-  \ XXX TMP
-  \ XXX TODO
-
-: create-glossary-file  ( -- )
-  \ XXX TODO header
-  join-entries  ;
-
-: glossary  ( n -- )
-  delete-temp-files parse-source-files create-glossary-file  ;
-  create a glossary of entries extracted from _n_ parameter files
-
-: input-files  ( -- n )
-  argc @ 1-  ;
-  \ number of input files in the command line
-: run  ( -- )
-  input-files ?dup
-  if  glossary  else  about  then  set-normal-order  ;
-
-[endif]
-
 run bye
+
+\ ==============================================================
+\ History
+
+\ 2015-09-25: Start.
+\
+\ 2015-11-04: Renamed from "source2adoc" to "glosser". Some
+\ changes. Deferred vocabularies for parsing.
+\
+\ 2015-11-25: First draft.
+\
+\ 2015-11-26: First working version: the glossary entries are
+\ extracted from the sources of Solo Forth, ordered and joined
+\ into a glossary file. Added an argument parser.
+\
+\ 2016-04-28: Create Git repository out of the development
+\ backups.  Rename to "Glosara". Change the version numbering
+\ after Semantic Versioning (http://semver.org).
 
 \ vim: textwidth=64
