@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.1.0+201604282351" ;
+: version  s" 0.1.0+201604290020" ;
 
 \ ==============================================================
 \ Description
@@ -137,14 +137,21 @@ wordlist constant z80-entry-wordlist  ( -- wid )
   entry-files-pattern  s" rm -f " 2swap s+ system  ;
   \ delete all temporary entry files
 
+: ruler  ( c len -- ca len )
+  dup allocate throw swap 2dup 2>r rot fill 2r>  ;
+  \ return a string of _len_ characters _c_.
+
+31 constant max-word-length
+
 : entryname>filename  ( ca1 len1 -- ca2 len2 )
-  s" 000000000000000000000000000000000000000000000000000000000000"
-  2swap string>hex s+ 62 string/
+  '0' max-word-length ruler
+  2swap string>hex s+ [ max-word-length 2 * ] literal string/
   entry-filename-extension s+
   temp-directory 2swap s+  ;
-  \ convert the name of a glossary entry (a Forth word) to its
-  \ temporary filename. the base filename consists of 31 8-bit hex
-  \ numbers that represent the characters of the entry name.
+  \ convert the name of a glossary entry _ca1 len1_ (a Forth
+  \ word) to its temporary filename _ca2 len2_. the base
+  \ filename consists of 31 8-bit hex numbers that represent the
+  \ characters of the entry name.
 
 \ ==============================================================
 \ Glossary entries
