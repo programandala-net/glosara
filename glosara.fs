@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.5.0+201702142000" ;
+: version  s" 0.6.0+201702142126" ;
 
 \ ==============================================================
 \ Description
@@ -49,6 +49,7 @@ include ffl/arg.fs \ argument parser
 require galope/trim.fs
 require galope/slash-name.fs
 require galope/first-name.fs
+require galope/replaced.fs
 
 require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
@@ -103,16 +104,6 @@ variable output-file \ output file identifier
 
 0 [if] \ XXX TODO --
 
-: c>hex ( c -- ca len )
-  base @ >r hex  s>d <# # # #>  r> base ! ;
-  \ Convert a character to a 2-char string with its hex value.
-
-: string>hex ( ca1 len1 -- ca2 len2 )
-  s" " 2swap bounds do  i c@ c>hex s+  loop ;
-  \ Return a string _ca2 len2_ which consists of the hex values
-  \ of the characters of string _ca1 len1_ (one 2-digit hex
-  \ number per original character).
-
 : entry-files-pattern ( -- ca len )
   temp-directory s" *" s+ entry-filename-extension s+ ;
   \ Wildcard pattern for all temporary entry files.
@@ -136,6 +127,55 @@ variable output-file \ output file identifier
   \ word) to its temporary filename _ca2 len2_. The base
   \ filename consists of `max-word-length` 8-bit hex numbers
   \ that represent the characters of the entry name.
+[then]
+
+\ ==============================================================
+\ Strings
+
+: c>hex ( c -- ca len )
+  base @ >r hex  s>d <# # # #>  r> base ! ;
+  \ Convert a character _c_ to a 2-character string _ca len_
+  \ with its hex value.
+
+: string>hex ( ca1 len1 -- ca2 len2 )
+  s" " 2swap bounds do  i c@ c>hex s+  loop ;
+  \ Return a string _ca2 len2_ which consists of the hex values
+  \ of the characters of string _ca1 len1_ (one 2-digit hex
+  \ number per original character).
+
+0 [if] \ XXX OLD
+
+: name>id ( ca1 len1 -- ca2 len2 )
+  s" -minus-"      s" -"   replaced \ this must be the first one
+  s" -two-"        s" 2"   replaced
+  s" -zero-"       s" 0"   replaced
+  s" -one-"        s" 1"   replaced
+  s" -fetch-"      s" @"   replaced
+  s" -brace-"      s" {"   replaced
+  s" "             s" }"   replaced
+  s" -colon-"      s" :"   replaced
+  s" -semicolon-"  s" ;"   replaced
+  s" -tick-"       s" '"   replaced
+  s" -dot-"        s" ."   replaced
+  s" -comma-"      s" ,"   replaced
+  s" -bracket-"    s" ["   replaced
+  s" -not-equals-" s" <>"  replaced
+  s" -equals-"     s" ="   replaced
+  s" "             s" ]"   replaced
+  s" -question-"   s" ?"   replaced
+  s" -store-"      s" !"   replaced
+  s" -paren-"      s" ("   replaced
+  s" -slash-"      s" /"   replaced
+  s" -from-"       s" >"   replaced
+  s" -to-"         s" <"   replaced
+  s" -plus-"       s" +"   replaced
+  s" -star-"       s" *"   replaced
+  s" -backslash-"  s" \"   replaced
+  s" -quote-"      s\" \q" replaced
+  s" "             s" )"   replaced
+  s" -hash-"       s" #"   replaced
+  s" -"            s" --"  replaced \ this must be the last one
+  ;
 
 [then]
 
@@ -150,9 +190,11 @@ variable entry          \ counter of non-empty lines (first line is 1)
 variable entry-header   \ flag: processing an entry header?
 variable header-status
 
-: processing-header? ( -- f ) header-status @ 1 = ;
+: processing-header? ( -- f )
+  header-status @ 1 = ;
 
-: header-done? ( -- f ) header-status @ 2 = ;
+: header-done? ( -- f )
+  header-status @ 2 = ;
 
 : start-of-entry? ( ca len -- f )
   s" doc{" str= ;
@@ -167,9 +209,17 @@ variable header-status
   start-of-entry? if new-entry then ;
   \ Process input file line _ca len_.
 
-: heading ( ca len -- ) ." == " type cr ;
+: name>id ( ca1 len1 -- ca2 len2 )
+  s" [#" 2swap string>hex s+ s" ]" s+ ;
+  \ Convert word name _ca1 len1_ to an Asciidoctor attribute
+  \ list _ca2 len2_ containing the corresponding id block
+  \ attribute.
 
-: code-block ( ca len -- ) ." ----" cr type cr ;
+: heading ( ca len -- )
+  2dup name>id type cr ." == " type cr ;
+
+: code-block ( ca len -- )
+  ." ----" cr type cr ;
   \ Output the markup to start or end a code block,
   \ followed by the given string.
 
