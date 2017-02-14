@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.2.0+201702141520" ;
+: version  s" 0.3.0+201702141550" ;
 
 \ ==============================================================
 \ Description
@@ -180,6 +180,7 @@ s" .glossary_entry" 2constant entry-filename-extension
 create line-buffer /line-buffer 2 + chars allot
 
 variable processing-entry \ flag: processing a glossary entry?
+variable entry-header \ flag: processing an entry header?
 
 : start-of-entry? ( ca len -- f )
   s" doc{" str= ;
@@ -188,24 +189,42 @@ variable processing-entry \ flag: processing a glossary entry?
   s" }doc" str= ;
 
 : process-ordinary-line ( ca len -- )
-  start-of-entry? processing-entry !  ;
+  start-of-entry? dup processing-entry ! entry-header !  ;
+
+: entry-header? ( ca len -- f )
+  nip 0<> entry-header @ and ;
+
+: (process-entry-line) ( ca len -- )
+  cr 2dup entry-header? if ." == " entry-header off
+                        then type ;
 
 : process-entry-line ( ca len -- )
   2dup end-of-entry? if   processing-entry off 2drop
-                     else type cr then ;
+                     else (process-entry-line)
+                     then ;
 
 : tidy-line  ( ca len -- ca' len' )
   /name 2nip trim ;
+  \ Remove the first name from _ca len_ and then also the
+  \ remaining leading and trailing spaces. The removed name (a
+  \ substring delimited by spaces) is the line comment mark of
+  \ the input source.
  
 : process-line ( ca len -- )
-  \ 2dup type cr \ XXX INFORMER
-  tidy-line processing-entry @ if   process-entry-line
-                               else process-ordinary-line then ;
+  \ 2dup cr ." «" type ." »" .s \ XXX INFORMER
+  tidy-line 
+  \ 2dup cr ." «" type ." »" .s key drop \ XXX INFORMER
+  processing-entry @ if   process-entry-line
+                     else process-ordinary-line then ;
 
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
 
+: init-parser ( -- )
+  processing-entry off entry-header off ;
+
 : parse-file ( fid -- )
+  init-parser
   begin dup read-line? while process-line repeat 2drop ;
   \ Extract the glossary information from file _fid_ and
   \ print it to standard output.
@@ -285,36 +304,15 @@ arg.output-option arguments arg-add-option
 \ ==============================================================
 \ Boot
 
-: init-variables ( -- )
-  processing-entry off ;
-
 : init-arguments ( -- )
   argc off  options off  verbose off ;
 
 : init ( -- )
-  delete-temp-files init-arguments init-variables ;
+  delete-temp-files init-arguments ;
 
 : run ( -- )
   init  begin  option?  while  option  repeat  drop  ?help ;
 
 run bye
-
-\ ==============================================================
-\ History
-
-\ 2015-09-25: Start.
-\
-\ 2015-11-04: Renamed from "source2adoc" to "glosser". Some
-\ changes. Deferred vocabularies for parsing.
-\
-\ 2015-11-25: First draft.
-\
-\ 2015-11-26: First working version: the glossary entries are
-\ extracted from the sources of Solo Forth, ordered and joined
-\ into a glossary file. Added an argument parser.
-\
-\ 2016-04-28: Create a Git repository out of the development
-\ backups.  Rename to "Glosara". Change the version numbering
-\ after Semantic Versioning (http://semver.org).
 
 \ vim: textwidth=64
