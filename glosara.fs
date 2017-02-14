@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.8.0+201702142349" ;
+: version  s" 0.9.0+201702150033" ;
 
 \ ==============================================================
 \ Description
@@ -82,8 +82,8 @@ s" .glosara.entry" 2constant entry-filename-extension
 
 variable output-file \ output file identifier
 
-: create-output-file ( -- )
-  output-filename 2@ w/o create-file throw output-file ! ;
+: create-output-file ( -- fid )
+  output-filename 2@ w/o create-file throw dup output-file ! ;
 
 : close-output-file ( -- )
   output-file @ close-file throw ;
@@ -128,8 +128,8 @@ variable entry-file
   temp-directory s" *" s+ entry-filename-extension s+ ;
   \ Wildcard pattern for all temporary entry files.
 
-: delete-temp-files ( -- )
-  entry-files-pattern  s" rm -f " 2swap s+ system ;
+: delete-entry-files ( -- )
+  s" rm -f " entry-files-pattern s+ system ;
   \ Delete all temporary entry files.
 
 \ ==============================================================
@@ -250,9 +250,30 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
   \ print it to standard output.
 
 \ ==============================================================
-\ Argument parser
+\ Glossary
 
-variable options \ counter: valid options on the command line
+  \ : output ( -- fid )
+  \ output-filename @ if create-output-file else stdout then ;
+  \ XXX OLD
+
+: >file ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  output-filename @ if s"  > " s+ output-filename 2@ s+ then ;
+  \ I an output file was specified in the command line, add its
+  \ redirection to the given shell command _ca1 len1_, resulting
+  \ _ca2 len2_. Otherwise do nothing.
+
+: cat ( -- ca len )
+  s" cat " entry-files-pattern s+ ;
+  \ Return the shell `cat` command to concatenate and print all glossary
+  \ entry files.
+
+: glossary ( -- )
+  cat >file system ;
+  \ Print the final glossary to standard output or to the output
+  \ file, if specified.
+
+\ ==============================================================
+\ Argument parser
 
 \ Create a new argument parser
 s" Glosara" \ name
@@ -285,17 +306,13 @@ arg.output-option arguments arg-add-option
   arguments arg-print-help ;
   \ Show the help.
 
-: ?help ( -- )
-  options @ ?exit help ;
-  \ Show the help if no option was specified.
-
 : verbose-option ( -- )
   verbose on s" Verbose mode is on" echo ;
 
-variable input-files \ counter
+variable input-files# \ counter
 
 : input-file ( ca len -- )
-  1 input-files +!
+  1 input-files# +!
   s" Processing " 2over s+ echo parse-input-file ;
 
 : output-option ( ca len -- )
@@ -306,7 +323,6 @@ variable input-files \ counter
   arguments arg-print-version ;
 
 : option ( n -- )
-  1 options +!
   case
     arg.help-option    of help           endof
     arg.version-option of version-option endof
@@ -322,15 +338,18 @@ variable input-files \ counter
 \ ==============================================================
 \ Boot
 
-: init-arguments ( -- )
-  output-filename off argc off
-  input-files off options off verbose off ;
-
 : init ( -- )
-  init-arguments ;
+  delete-entry-files
+  argc off verbose off output-filename off input-files# off ;
+
+: options ( -- )
+  begin option? while option repeat drop ;
+
+: files ( -- n )
+  init options input-files# @ ;
 
 : run ( -- )
-  init begin option? while option repeat drop ?help ;
+  files if glossary else help then ;
 
 run bye
 
