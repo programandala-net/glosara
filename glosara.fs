@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.4.0+201702141635" ;
+: version  s" 0.5.0+201702142000" ;
 
 \ ==============================================================
 \ Description
@@ -43,12 +43,14 @@ include ffl/arg.fs \ argument parser
 \ From the Galope library
 \ (http://programandala.net/en.program.galope.html)
 
-require galope/unslurp-file.fs
-require galope/minus-extension.fs
-require galope/string-suffix-question.fs
-require galope/string-slash.fs
+\ require galope/unslurp-file.fs
+\ require galope/minus-extension.fs
+\ require galope/string-slash.fs
 require galope/trim.fs
 require galope/slash-name.fs
+require galope/first-name.fs
+
+require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
 \ ==============================================================
 \ Config
@@ -138,47 +140,19 @@ variable output-file \ output file identifier
 [then]
 
 \ ==============================================================
-\ Glossary entries
-
-0 [if] \ XXX OLD
-
-: parse-line ( -- ca len )  0 parse ;
-
-: end-of-entry ( -- )
-  ." }doc found! End of entry." \ XXX INFORMER
-  \ cr ." End of entry -- press any key" key drop \ XXX INFORMER
-  close-entry-file set-source-order ;
-  \ End of the current glossary entry.
-
-: new-entry ( ca len -- )
-  entryname>filename create-entry-file
-  s" == " >entry-file ;
-  \ Start a new entry, creating its output file.
-
-: get-entry-line ( "text<eol>" -- )
-  \ ." valid-entry-line: " 2dup type ~~ cr key drop \ XXX INFORMER
-  parse-line >entry-file-line cr ;
-  \ Parse a line of the current entry and write it to its file.
-
-: parse-entry-line ( "text<eol>" -- )
-  parse-line
-  \ 2dup ." «" type ." »" \ XXX INFORMER
-  \ key drop \ XXX INFORMER
-  2dup end-of-entry? if   end-of-entry
-                     else type then ;
-  \ Parse and type a line of glossary entry.
-
-[then]
-
-\ ==============================================================
 \ Source parser
 
 255 constant /line-buffer
 
 create line-buffer /line-buffer 2 + chars allot
 
-variable processing-entry \ flag: processing a glossary entry?
-variable entry-header \ flag: processing an entry header?
+variable entry          \ counter of non-empty lines (first line is 1)
+variable entry-header   \ flag: processing an entry header?
+variable header-status
+
+: processing-header? ( -- f ) header-status @ 1 = ;
+
+: header-done? ( -- f ) header-status @ 2 = ;
 
 : start-of-entry? ( ca len -- f )
   s" doc{" str= ;
@@ -186,40 +160,70 @@ variable entry-header \ flag: processing an entry header?
 : end-of-entry? ( ca len -- f )
   s" }doc" str= ;
 
-: process-ordinary-line ( ca len -- )
-  start-of-entry? dup processing-entry ! entry-header !  ;
+: new-entry ( -- )
+  1 entry ! entry-header off header-status off ;
 
-: entry-header? ( ca len -- f )
-  nip 0<> entry-header @ and ;
+: process-code-line ( ca len -- )
+  start-of-entry? if new-entry then ;
+  \ Process input file line _ca len_.
 
-: header-markup ( -- ) ." == " entry-header off ;
+: heading ( ca len -- ) ." == " type cr ;
+
+: code-block ( ca len -- ) ." ----" cr type cr ;
+  \ Output the markup to start or end a code block,
+  \ followed by the given string.
+
+: header-boundary ( ca len -- )
+  code-block 1 header-status +! ;
+
+: end-header ( ca len -- )
+  header-boundary ;
+
+: start-header ( ca len -- )
+  1 entry +!
+  2dup first-name heading cr header-boundary ;
+  \ Start an entry header, whose first line is _ca len_.
+
+: start-of-header?  ( -- f )
+  entry @ 2 = ;
+
+: end-of-header?  ( len -- f )
+  0= processing-header? and ;
+
+: update-line-count ( len -- )
+  0<> abs entry +! ;
 
 : (process-entry-line) ( ca len -- )
-  cr 2dup entry-header? if header-markup then type ;
+  dup update-line-count
+  dup end-of-header?   if end-header   exit then
+      start-of-header? if start-header exit then
+  type cr ;
+  \ Process input line _ca len_, which is part of the contents
+  \ of a glossary entry.
 
 : process-entry-line ( ca len -- )
-  2dup end-of-entry? if   processing-entry off 2drop
+  2dup end-of-entry? if   entry off 2drop
                      else (process-entry-line) then ;
+  \ Process input line _ca len_, which is part of a glossary
+  \ entry, maybe its end markup.
 
-: tidy-line  ( ca len -- ca' len' )
+: tidy  ( ca len -- ca' len' )
   /name 2nip trim ;
   \ Remove the first name from _ca len_ and then also the
   \ remaining leading and trailing spaces. The removed name (a
   \ substring delimited by spaces) is the line comment mark of
   \ the input source.
- 
+
 : (process-line) ( ca len -- )
-  \ 2dup cr ." «" type ." »" .s \ XXX INFORMER
-  tidy-line 
-  \ 2dup cr ." «" type ." »" .s key drop \ XXX INFORMER
-  processing-entry @ if   process-entry-line
-                     else process-ordinary-line then ;
+  entry @ if   process-entry-line
+          else process-code-line then ;
   \ Process the input line _ca len_.
 
 : process-line ( ca len -- )
-  ['] (process-line) output outfile-execute ;
+  tidy ['] (process-line) output outfile-execute ;
   \ Process the input line _ca len_, redirecting the
-  \ output to the output file, if specified.
+  \ output to the output file specified in the command line, if
+  \ any.
 
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
@@ -228,7 +232,7 @@ variable entry-header \ flag: processing an entry header?
   output-filename @ if create-output-file then ;
 
 : init-parser-flags ( -- )
-  processing-entry off entry-header off ;
+  entry off entry-header off header-status off ;
 
 : init-parser ( -- )
   init-parser-flags init-output ;
@@ -286,11 +290,9 @@ arg.output-option arguments arg-add-option
   verbose on s" Verbose mode is on" echo ;
 
 : input-file ( ca len -- )
-  \ cr ." input-file " 2dup type \ XXX INFORMER
   s" Processing " 2over s+ echo parse-input-file ;
 
 : output-option ( ca len -- )
-  2dup cr ." output-option " type \ XXX INFORMER
   output-filename @ abort" More than one output file specified"
   output-filename 2! ;
 
