@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.3.0+201702141550" ;
+: version  s" 0.4.0+201702141635" ;
 
 \ ==============================================================
 \ Description
@@ -69,7 +69,8 @@ s" .glossary_entry" 2constant entry-filename-extension
 \ ==============================================================
 \ Files
 
-2variable output-filename \ filename
+2variable output-filename
+variable output-file \ output file identifier
 
 0 [if] \ XXX TODO --
 
@@ -89,21 +90,16 @@ s" .glossary_entry" 2constant entry-filename-extension
 
 [then]
 
-0 [if] \ XXX TODO --
-
-: create-output-file ( ca len -- )
-  w/o create-file throw  to output-fid ;
+: create-output-file ( -- )
+  output-filename 2@ w/o create-file throw output-file ! ;
 
 : close-output-file ( -- )
-  output-fid close-file throw  0 to output-fid ;
+  output-file @ close-file throw ;
 
-: >output-file ( ca len -- )
-  output-fid write-file throw ;
+: output  ( -- fid )
+  output-file @ ?dup 0= if stdout then ;
 
-: >output-file-line ( ca len -- )
-  output-fid ?dup if  write-line throw  else  2drop  then ;
-
-[then]
+0 [if] \ XXX TODO --
 
 : c>hex ( c -- ca len )
   base @ >r hex  s>d <# # # #>  r> base ! ;
@@ -139,6 +135,8 @@ s" .glossary_entry" 2constant entry-filename-extension
   \ filename consists of `max-word-length` 8-bit hex numbers
   \ that represent the characters of the entry name.
 
+[then]
+
 \ ==============================================================
 \ Glossary entries
 
@@ -164,7 +162,7 @@ s" .glossary_entry" 2constant entry-filename-extension
 
 : parse-entry-line ( "text<eol>" -- )
   parse-line
-  2dup ." «" type ." »" \ XXX INFORMER
+  \ 2dup ." «" type ." »" \ XXX INFORMER
   \ key drop \ XXX INFORMER
   2dup end-of-entry? if   end-of-entry
                      else type then ;
@@ -194,14 +192,14 @@ variable entry-header \ flag: processing an entry header?
 : entry-header? ( ca len -- f )
   nip 0<> entry-header @ and ;
 
+: header-markup ( -- ) ." == " entry-header off ;
+
 : (process-entry-line) ( ca len -- )
-  cr 2dup entry-header? if ." == " entry-header off
-                        then type ;
+  cr 2dup entry-header? if header-markup then type ;
 
 : process-entry-line ( ca len -- )
   2dup end-of-entry? if   processing-entry off 2drop
-                     else (process-entry-line)
-                     then ;
+                     else (process-entry-line) then ;
 
 : tidy-line  ( ca len -- ca' len' )
   /name 2nip trim ;
@@ -210,18 +208,30 @@ variable entry-header \ flag: processing an entry header?
   \ substring delimited by spaces) is the line comment mark of
   \ the input source.
  
-: process-line ( ca len -- )
+: (process-line) ( ca len -- )
   \ 2dup cr ." «" type ." »" .s \ XXX INFORMER
   tidy-line 
   \ 2dup cr ." «" type ." »" .s key drop \ XXX INFORMER
   processing-entry @ if   process-entry-line
                      else process-ordinary-line then ;
+  \ Process the input line _ca len_.
+
+: process-line ( ca len -- )
+  ['] (process-line) output outfile-execute ;
+  \ Process the input line _ca len_, redirecting the
+  \ output to the output file, if specified.
 
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
 
-: init-parser ( -- )
+: init-output ( -- )
+  output-filename @ if create-output-file then ;
+
+: init-parser-flags ( -- )
   processing-entry off entry-header off ;
+
+: init-parser ( -- )
+  init-parser-flags init-output ;
 
 : parse-file ( fid -- )
   init-parser
@@ -250,18 +260,18 @@ arguments arg-add-version-option
 
 \ Add the verbose option
 4 constant arg.verbose-option
-char v \ short option
-s" verbose" \ long option
+'v'                       \ short option
+s" verbose"               \ long option
 s" activate verbose mode" \ description
-true \ switch type
+true                      \ switch type
 arg.verbose-option arguments arg-add-option
 
 \ Add the output option
 5 constant arg.output-option
-char o \ short option
-s" output" \ long option
+'o'                     \ short option
+s" output"              \ long option
 s" set the output file" \ description
-false \ switch type
+false                   \ switch type
 arg.output-option arguments arg-add-option
 
 : help ( -- )
@@ -269,19 +279,19 @@ arg.output-option arguments arg-add-option
   \ Show the help.
 
 : ?help ( -- )
-  options @ ?exit  help ;
+  options @ ?exit help ;
   \ Show the help if no option was specified.
 
 : verbose-option ( -- )
-  verbose on  s" Verbose mode is on" echo ;
+  verbose on s" Verbose mode is on" echo ;
 
 : input-file ( ca len -- )
   \ cr ." input-file " 2dup type \ XXX INFORMER
-  s" Processing " 2over s+ echo  parse-input-file ;
+  s" Processing " 2over s+ echo parse-input-file ;
 
 : output-option ( ca len -- )
-  \ cr ." output-option " 2dup type \ XXX INFORMER
-  output-filename @ 0<> abort" More than one output file specified"
+  2dup cr ." output-option " type \ XXX INFORMER
+  output-filename @ abort" More than one output file specified"
   output-filename 2! ;
 
 : version-option ( -- )
@@ -290,11 +300,11 @@ arg.output-option arguments arg-add-option
 : option ( n -- )
   1 options +!
   case
-    arg.help-option       of  help              endof
-    arg.version-option    of  version-option    endof
-    arg.output-option     of  output-option     endof
-    arg.verbose-option    of  verbose-option    endof
-    arg.non-option        of  input-file        endof
+    arg.help-option    of help           endof
+    arg.version-option of version-option endof
+    arg.output-option  of output-option  endof
+    arg.verbose-option of verbose-option endof
+    arg.non-option     of input-file     endof
   endcase ;
 
 : option? ( -- n f )
@@ -305,13 +315,13 @@ arg.output-option arguments arg-add-option
 \ Boot
 
 : init-arguments ( -- )
-  argc off  options off  verbose off ;
+  output-filename off argc off options off verbose off ;
 
 : init ( -- )
-  delete-temp-files init-arguments ;
+  init-arguments ;
 
 : run ( -- )
-  init  begin  option?  while  option  repeat  drop  ?help ;
+  init begin option? while option repeat drop ?help ;
 
 run bye
 
