@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.7.0+201702142227" ;
+: version  s" 0.8.0+201702142349" ;
 
 \ ==============================================================
 \ Description
@@ -40,7 +40,7 @@ include ffl/arg.fs \ argument parser
 
 \ require galope/unslurp-file.fs
 \ require galope/minus-extension.fs
-\ require galope/string-slash.fs
+require galope/string-slash.fs
 \ require galope/trim.fs
 require galope/slash-name.fs
 require galope/first-name.fs
@@ -49,80 +49,13 @@ require galope/first-name.fs
 require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
 \ ==============================================================
-\ Config
+\ Misc
 
 variable verbose verbose off \ flag: verbose mode?
-variable options \ counter: valid options on the command line
-
-s" /tmp/" 2constant temp-directory
-s" .glossary_entry" 2constant entry-filename-extension
-
-\ ==============================================================
-\ Misc
 
 : echo ( ca len -- )
   verbose @ if  type cr  else  2drop  then ;
   \ Print the string _ca len_ if `verbose` is on.
-
-\ ==============================================================
-\ Files
-
-2variable output-filename
-variable output-file \ output file identifier
-
-0 [if] \ XXX TODO --
-
-0 value entry-fid
-
-: create-entry-file ( ca len -- )
-  w/o create-file throw  to entry-fid ;
-
-: close-entry-file ( -- )
-  entry-fid close-file throw  0 to entry-fid ;
-
-: >entry-file ( ca len -- )
-  entry-fid write-file throw ;
-
-: >entry-file-line ( ca len -- )
-  entry-fid ?dup if  write-line throw  else  2drop  then ;
-
-[then]
-
-: create-output-file ( -- )
-  output-filename 2@ w/o create-file throw output-file ! ;
-
-: close-output-file ( -- )
-  output-file @ close-file throw ;
-
-: output  ( -- fid )
-  output-file @ ?dup 0= if stdout then ;
-
-0 [if] \ XXX TODO --
-
-: entry-files-pattern ( -- ca len )
-  temp-directory s" *" s+ entry-filename-extension s+ ;
-  \ Wildcard pattern for all temporary entry files.
-
-: delete-temp-files ( -- )
-  entry-files-pattern  s" rm -f " 2swap s+ system ;
-  \ Delete all temporary entry files.
-
-: ruler ( c len -- ca len )
-  dup allocate throw swap 2dup 2>r rot fill 2r> ;
-  \ Return a string of _len_ characters _c_.
-
-31 constant max-word-length
-
-: entryname>filename ( ca1 len1 -- ca2 len2 )
-  '0' max-word-length ruler
-  2swap string>hex s+ [ max-word-length 2 * ] literal string/
-  entry-filename-extension s+
-  temp-directory 2swap s+ ;
-  \ Convert the name of a glossary entry _ca1 len1_ (a Forth
-  \ word) to its temporary filename _ca2 len2_. The base
-  \ filename consists of `max-word-length` 8-bit hex numbers
-  \ that represent the characters of the entry name.
-[then]
 
 \ ==============================================================
 \ Strings
@@ -139,21 +72,79 @@ variable output-file \ output file identifier
   \ number per original character).
 
 \ ==============================================================
+\ Files
+
+s" /tmp/" 2constant temp-directory
+
+s" .glosara.entry" 2constant entry-filename-extension
+
+2variable output-filename
+
+variable output-file \ output file identifier
+
+: create-output-file ( -- )
+  output-filename 2@ w/o create-file throw output-file ! ;
+
+: close-output-file ( -- )
+  output-file @ close-file throw ;
+
+31 constant max-word-length
+max-word-length 2 * constant /entry-filename
+
+create entry-filename-template /entry-filename chars allot
+  \ Entry filename.
+
+: init-entry-filename-template ( -- )
+  entry-filename-template /entry-filename '0' fill ;
+  \ Erase the entry filename with characters '0'.
+
+init-entry-filename-template
+
+: entryname>filename ( ca1 len1 -- ca2 len2 )
+  \ 2dup ." entryname=" type cr key drop \ XXX INFORMER
+  entry-filename-template /entry-filename 2swap string>hex s+
+  /entry-filename string/
+  \ 2dup ." filename=" type cr key drop  \ XXX INFORMER
+  entry-filename-extension s+
+  temp-directory 2swap s+ ;
+  \ Convert a glossary entry name _ca1 len1_ (a Forth
+  \ word) to its temporary filename _ca2 len2_. The base
+  \ filename consists of `max-word-length` 8-bit hex numbers
+  \ that represent the characters of the entry name.
+
+variable entry-file
+
+: close-entry-file ( -- )
+  entry-file @ close-file throw entry-file off ;
+  \ Close the glossary entry file.
+
+: create-entry-file ( ca len -- fid )
+  entry-file @ if close-entry-file then
+  entryname>filename w/o create-file throw dup entry-file ! ;
+  \ Create a file for glossary entry name _ca len_.
+  \ If a previous entry file is open, close it.
+
+: entry-files-pattern ( -- ca len )
+  temp-directory s" *" s+ entry-filename-extension s+ ;
+  \ Wildcard pattern for all temporary entry files.
+
+: delete-temp-files ( -- )
+  entry-files-pattern  s" rm -f " 2swap s+ system ;
+  \ Delete all temporary entry files.
+
+\ ==============================================================
 \ Source parser
 
 255 constant /line-buffer
 
 create line-buffer /line-buffer 2 + chars allot
 
-variable entry          \ counter of non-empty lines (first line is 1)
+variable entry-line#    \ counter of non-empty lines (first line is 1)
 variable entry-header   \ flag: processing an entry header?
-variable header-status
+variable header-status  \ 0=not found yet; 1=processing; 2=finished
 
 : processing-header? ( -- f )
   header-status @ 1 = ;
-
-: header-done? ( -- f )
-  header-status @ 2 = ;
 
 : start-of-entry? ( ca len -- f )
   s" doc{" str= ;
@@ -162,20 +153,20 @@ variable header-status
   s" }doc" str= ;
 
 : new-entry ( -- )
-  1 entry ! entry-header off header-status off ;
+  1 entry-line# ! entry-header off header-status off ;
 
 : process-code-line ( ca len -- )
   start-of-entry? if new-entry then ;
   \ Process input file line _ca len_.
 
-: name>id ( ca1 len1 -- ca2 len2 )
+: entryname>id ( ca1 len1 -- ca2 len2 )
   s" [#" 2swap string>hex s+ s" ]" s+ ;
   \ Convert word name _ca1 len1_ to an Asciidoctor attribute
   \ list _ca2 len2_ containing the corresponding id block
   \ attribute.
 
 : heading ( ca len -- )
-  2dup name>id type cr ." == " type cr ;
+  2dup entryname>id type cr ." == " type cr ;
 
 : code-block ( ca len -- )
   ." ----" cr type cr ;
@@ -189,21 +180,25 @@ variable header-status
   header-boundary ;
 
 : start-header ( ca len -- )
-  1 entry +!
-  2dup first-name heading cr header-boundary ;
+  1 entry-line# +!
+  2dup first-name 2dup create-entry-file to outfile-id
+                       heading cr
+       header-boundary ;
   \ Start an entry header, whose first line is _ca len_.
 
 : start-of-header?  ( -- f )
-  entry @ 2 = ;
+  entry-line# @ 2 = ;
 
 : end-of-header?  ( len -- f )
   0= processing-header? and ;
 
-: update-line-count ( len -- )
-  0<> abs entry +! ;
+: update-entry-line# ( len -- )
+  0<> abs entry-line# +! ;
+  \ If _len_ (the length of the current entry line)
+  \ is not zero, increase the count of entry lines.
 
 : (process-entry-line) ( ca len -- )
-  dup update-line-count
+  dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
   type cr ;
@@ -211,7 +206,7 @@ variable header-status
   \ of a glossary entry.
 
 : process-entry-line ( ca len -- )
-  2dup end-of-entry? if   entry off 2drop
+  2dup end-of-entry? if   entry-line# off 2drop
                      else (process-entry-line) then ;
   \ Process input line _ca len_, which is part of a glossary
   \ entry, maybe its end markup.
@@ -222,32 +217,30 @@ variable header-status
   \ _ca len_ and the first space after it.  also the The removed
   \ name is the line comment mark of the input source.
 
-: (process-line) ( ca len -- )
-  entry @ if   process-entry-line
-          else process-code-line then ;
-  \ Process the input line _ca len_.
-
 : process-line ( ca len -- )
-  tidy ['] (process-line) output outfile-execute ;
-  \ Process the input line _ca len_, redirecting the
-  \ output to the output file specified in the command line, if
-  \ any.
+  tidy entry-line# @ if   process-entry-line
+                     else process-code-line then ;
+  \ Process the input line _ca len_.
 
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
 
-: init-output ( -- )
-  output-filename @ if create-output-file then ;
+  \ XXX OLD
+  \ : init-output ( -- )
+  \ output-filename @ if create-output-file then ;
 
-: init-parser-flags ( -- )
-  entry off entry-header off header-status off ;
+: begin-parsing ( -- )
+  entry-line# off entry-header off header-status off ;
+  \ Init the parser variables.
 
-: init-parser ( -- )
-  init-parser-flags init-output ;
+: end-parsing ( -- )
+  stdout to outfile-id ;
+  \ Set `emit` and `type` to standard output.
 
 : parse-file ( fid -- )
-  init-parser
-  begin dup read-line? while process-line repeat 2drop ;
+  begin-parsing
+  begin dup read-line? while process-line repeat 2drop
+  end-parsing ;
   \ Extract the glossary information from file _fid_ and
   \ print it to standard output.
 
@@ -258,6 +251,8 @@ variable header-status
 
 \ ==============================================================
 \ Argument parser
+
+variable options \ counter: valid options on the command line
 
 \ Create a new argument parser
 s" Glosara" \ name
@@ -297,7 +292,10 @@ arg.output-option arguments arg-add-option
 : verbose-option ( -- )
   verbose on s" Verbose mode is on" echo ;
 
+variable input-files \ counter
+
 : input-file ( ca len -- )
+  1 input-files +!
   s" Processing " 2over s+ echo parse-input-file ;
 
 : output-option ( ca len -- )
@@ -325,7 +323,8 @@ arg.output-option arguments arg-add-option
 \ Boot
 
 : init-arguments ( -- )
-  output-filename off argc off options off verbose off ;
+  output-filename off argc off
+  input-files off options off verbose off ;
 
 : init ( -- )
   init-arguments ;
