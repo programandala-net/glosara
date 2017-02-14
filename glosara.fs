@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.1.0+201604290035" ;
+: version  s" 0.1.0+201701262203" ;
 
 \ ==============================================================
 \ Description
@@ -170,16 +170,21 @@ wordlist constant z80-entry-wordlist  ( -- wid )
 : new-entry  ( ca len -- )
   entryname>filename create-entry-file
   s" == " >entry-file  ;
-  \ Start a new entry, creating its output file
+  \ Start a new entry, creating its output file.
 
 : get-entry-line  ( "text<eol>" -- )
   \ ." valid-entry-line: " 2dup type ~~ cr key drop  \ XXX INFORMER
   0 parse >entry-file-line cr  ;
   \ Parse a line of the current entry and write it to its file.
 
+: parse-line  ( -- ca len )  0 parse  ;
+
 : entry-line  ( "text<eol>" -- )
-  save-input parse-name
-  \ ~~ ." parsed: " 2dup type cr key drop  \ XXX INFORMER
+  \ XXX FIXME -- why parse names instead of the whole line?
+  \ XXX FIXME -- why `save-input`?
+  save-input parse-line
+\  ~~ ." parsed: " 2dup type cr  \ XXX INFORMER
+  \ key drop  \ XXX INFORMER
   2dup end-of-glossary-entry?
   if  2drop restore-input throw end-of-glossary-entry exit  then
   dup 0<> entry-fid 0= and
@@ -199,11 +204,19 @@ forth-entry-wordlist set-current
   \ Start of glossary entry line in a Forth source.
 
 z80-extract-wordlist set-current
-: doc{  ( -- )  set-entry-order  ;
+: doc{  ( -- )
+\  ~~  \ XXX INFORMER
+  set-entry-order
+\  ~~  \ XXX INFORMER
+  ;
   \ Start a glossary entry.
 
 z80-entry-wordlist set-current
-: ;  ( "text<eol>"  -- )  entry-line  ;
+: ;  ( "text<eol>"  -- )
+  \ ~~  \ XXX INFORMER
+  entry-line
+  \ ~~  \ XXX INFORMER
+  ;
   \ Start of glossary entry line in a Z80 source.
 
 \ ==============================================================
@@ -213,15 +226,16 @@ forth-wordlist set-current
 
 : z80-source-file?  ( ca len -- f )
   2dup s" .z80s" string-suffix? if  2drop true exit  then
-       s" .asm" string-suffix? if  true exit  then
-  false  ;
+       s" .asm"  string-suffix?  ;
   \ Is the filename _ca len_ a Z80 source?
   \ If not, it's supposed to be a Forth source.
 
 : parse-current-source  ( -- )
   begin  refill  while
     begin  parse-name dup  while
-      \ ~~ 2dup ." <" type ." > " key drop  \ XXX INFORMER
+    \  ~~
+    2dup ." <" type ." > "  \ XXX INFORMER
+      \ key drop  \ XXX INFORMER
       find-name ?dup if  name>int execute  then
     repeat  2drop
   repeat  ;
@@ -229,7 +243,9 @@ forth-wordlist set-current
 
 : parse-file  ( fid -- )
   set-source-order
+  cr ." parse-file 1" \ XXX INFORMER
   ['] parse-current-source execute-parsing-file
+  cr ." parse-file 2" \ XXX INFORMER
   set-normal-order  ;
   \ Parse the file _fid_.
 
@@ -245,9 +261,11 @@ forth-wordlist set-current
   \ Set the proper word lists for the source file _ca len_.
 
 : parse-source-file  ( ca len -- )
+  \ cr ." parse-source-file " 2dup type \ XXX INFORMER
   2dup set-wordlists  r/o open-file throw
+  \ cr ." parse-source-file open" \ XXX INFORMER
   dup parse-file
-  close-file  \ XXX FIXME double free or corruption error
+  close-file  \ XXX FIXME "double free or corruption" Gforth error
   throw  ;
   \ Extract the glossary information from file _ca len_ and
   \ print it to standard output.
@@ -294,10 +312,12 @@ arg.output-option arguments arg-add-option
   verbose on  s" Verbose mode is on" echo  ;
 
 : input-file  ( ca len -- )
+  \ cr ." input-file " 2dup type \ XXX INFORMER
   s" Processing " 2over s+ echo  parse-source-file  ;
 
 : output-option  ( ca len -- )
-  output-filename @ 0<> abort ." More than one output file specified"
+  \ cr ." output-option " 2dup type  \ XXX INFORMER
+  output-filename @ 0<> abort" More than one output file specified"
   output-filename 2!  ;
 
 : version-option  ( -- )
