@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.6.0+201702142126" ;
+: version  s" 0.7.0+201702142227" ;
 
 \ ==============================================================
 \ Description
@@ -26,11 +26,6 @@
 \ redistributed copies and derived works. There is no warranty.
 
 \ ==============================================================
-\ History
-
-\ See at the end of the file.
-
-\ ==============================================================
 \ Requirements
 
 forth-wordlist set-current
@@ -46,10 +41,10 @@ include ffl/arg.fs \ argument parser
 \ require galope/unslurp-file.fs
 \ require galope/minus-extension.fs
 \ require galope/string-slash.fs
-require galope/trim.fs
+\ require galope/trim.fs
 require galope/slash-name.fs
 require galope/first-name.fs
-require galope/replaced.fs
+\ require galope/replaced.fs
 
 require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
@@ -143,42 +138,6 @@ variable output-file \ output file identifier
   \ of the characters of string _ca1 len1_ (one 2-digit hex
   \ number per original character).
 
-0 [if] \ XXX OLD
-
-: name>id ( ca1 len1 -- ca2 len2 )
-  s" -minus-"      s" -"   replaced \ this must be the first one
-  s" -two-"        s" 2"   replaced
-  s" -zero-"       s" 0"   replaced
-  s" -one-"        s" 1"   replaced
-  s" -fetch-"      s" @"   replaced
-  s" -brace-"      s" {"   replaced
-  s" "             s" }"   replaced
-  s" -colon-"      s" :"   replaced
-  s" -semicolon-"  s" ;"   replaced
-  s" -tick-"       s" '"   replaced
-  s" -dot-"        s" ."   replaced
-  s" -comma-"      s" ,"   replaced
-  s" -bracket-"    s" ["   replaced
-  s" -not-equals-" s" <>"  replaced
-  s" -equals-"     s" ="   replaced
-  s" "             s" ]"   replaced
-  s" -question-"   s" ?"   replaced
-  s" -store-"      s" !"   replaced
-  s" -paren-"      s" ("   replaced
-  s" -slash-"      s" /"   replaced
-  s" -from-"       s" >"   replaced
-  s" -to-"         s" <"   replaced
-  s" -plus-"       s" +"   replaced
-  s" -star-"       s" *"   replaced
-  s" -backslash-"  s" \"   replaced
-  s" -quote-"      s\" \q" replaced
-  s" "             s" )"   replaced
-  s" -hash-"       s" #"   replaced
-  s" -"            s" --"  replaced \ this must be the last one
-  ;
-
-[then]
-
 \ ==============================================================
 \ Source parser
 
@@ -258,11 +217,10 @@ variable header-status
   \ entry, maybe its end markup.
 
 : tidy  ( ca len -- ca' len' )
-  /name 2nip trim ;
-  \ Remove the first name from _ca len_ and then also the
-  \ remaining leading and trailing spaces. The removed name (a
-  \ substring delimited by spaces) is the line comment mark of
-  \ the input source.
+  /name 2nip dup 0<> abs /string ;
+  \ Remove the first name (a substring delimited by spaces) from
+  \ _ca len_ and the first space after it.  also the The removed
+  \ name is the line comment mark of the input source.
 
 : (process-line) ( ca len -- )
   entry @ if   process-entry-line
@@ -305,7 +263,7 @@ variable header-status
 s" Glosara" \ name
 s" [ OPTION | INPUT-FILE ] ..." \ usage
 version
-s" Written in Forth by Marcos Cruz (programandala.net)" \ extra
+s" Written by Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
 \ Add the default options
@@ -377,4 +335,4 @@ arg.output-option arguments arg-add-option
 
 run bye
 
-\ vim: textwidth=64
+\ vim: filetype=gforth textwidth=64
