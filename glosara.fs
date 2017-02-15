@@ -2,9 +2,7 @@
 
 \ glosara.fs
 
-\ XXX UNDER DEVELOPMENT
-
-: version  s" 0.12.0+201702151847" ;
+: version  s" 0.11.1+201702160024" ;
 
 \ ==============================================================
 \ Description
@@ -90,29 +88,25 @@ variable output-file \ output file identifier
 : close-output-file ( -- )
   output-file @ close-file throw ;
 
-31 constant max-word-length
-max-word-length 2 * constant /entry-filename
+                       31 constant max-word-length
+max-word-length 2 * chars constant /basefilename
 
-create entry-filename-template /entry-filename chars allot
-  \ Entry filename.
+create null-filename /basefilename allot
+       null-filename /basefilename '0' fill
 
-: init-entry-filename-template ( -- )
-  entry-filename-template /entry-filename '0' fill ;
-  \ Erase the entry filename with characters '0'.
-
-init-entry-filename-template
+: entryname>basefilename ( ca1 len1 -- ca2 len2 )
+  string>hex dup >r null-filename /basefilename r> - s+ ;
+  \ Convert a glossary entry name _ca1 len1_ (a Forth
+  \ word) to its temporary filename _ca2 len2_. The
+  \ filename consists of `max-word-length` 8-bit hex numbers
+  \ that represent the characters of the entry name, with
+  \ trailing '0' digits to its maximum length.
 
 : entryname>filename ( ca1 len1 -- ca2 len2 )
-  \ 2dup ." entryname=" type cr key drop \ XXX INFORMER
-  entry-filename-template /entry-filename 2swap string>hex s+
-  /entry-filename string/
-  \ 2dup ." filename=" type cr key drop  \ XXX INFORMER
-  entry-filename-extension s+
+  entryname>basefilename entry-filename-extension s+
   temp-directory 2swap s+ ;
-  \ Convert a glossary entry name _ca1 len1_ (a Forth
-  \ word) to its temporary filename _ca2 len2_. The base
-  \ filename consists of `max-word-length` 8-bit hex numbers
-  \ that represent the characters of the entry name.
+  \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
+  \ its temporary filename _ca2 len2_, including the path.
 
 variable entry-file
 
