@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.11.0+201702151736" ;
+: version  s" 0.12.0+201702151847" ;
 
 \ ==============================================================
 \ Description
@@ -117,11 +117,11 @@ init-entry-filename-template
 variable entry-file
 
 : close-entry-file ( -- )
-  entry-file @ close-file throw entry-file off ;
+  entry-file @ ?dup if close-file throw entry-file off then ;
   \ Close the glossary entry file.
 
 : create-entry-file ( ca len -- fid )
-  entry-file @ if close-entry-file then
+  close-entry-file
   entryname>filename w/o create-file throw dup entry-file ! ;
   \ Create a file for glossary entry name _ca len_.
   \ If a previous entry file is open, close it.
@@ -354,18 +354,18 @@ create (heading-markup) max-headings-level chars allot
 \ ==============================================================
 \ Argument parser
 
-\ Create a new argument parser
+\ Create a new argument parser:
 s" Glosara" \ name
 s" [ OPTION | INPUT-FILE ] ..." \ usage
 version
 s" Written by Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
-\ Add the default options
+\ Add the default options:
 arguments arg-add-help-option
 arguments arg-add-version-option
 
-\ Add the verbose option
+\ Add the verbose option:
 4 constant arg.verbose-option
 'v'                       \ short option
 s" verbose"               \ long option
@@ -373,7 +373,7 @@ s" activate verbose mode" \ description
 true                      \ switch type
 arg.verbose-option arguments arg-add-option
 
-\ Add the output option
+\ Add the output option:
 5 constant arg.output-option
 'o'                     \ short option
 s" output"              \ long option
@@ -381,13 +381,22 @@ s" set the output file" \ description
 false                   \ switch type
 arg.output-option arguments arg-add-option
 
-\ Add the headings level option
+\ Add the headings level option:
 6 constant arg.level-option
 'l'                                 \ short option
 s" level"                           \ long option
 s" set the headings level (1..6)"   \ description
 false                               \ switch type
 arg.level-option arguments arg-add-option
+
+\ Add the input option:
+7 constant arg.input-option
+'i'               \ short option
+s" input"         \ long option
+s" set file that contains a list of input files (one per line)"
+                  \ description
+false             \ switch type
+arg.input-option arguments arg-add-option
 
 : help ( -- )
   arguments arg-print-help ;
@@ -407,7 +416,19 @@ variable input-files# \ counter
 
 : input-file ( ca len -- )
   1 input-files# +!
-  s" Processing " 2over s+ echo parse-input-file ;
+  s" Processing input file " 2over s+ echo parse-input-file ;
+
+variable tmp  \ XXX TMP --
+
+: input-option ( ca len -- )
+  s" Processing input files list " 2over s+ echo
+  r/o open-file throw tmp !
+  begin tmp @ read-line? while save-mem input-file
+  repeat tmp @ close-file throw ;
+  \ XXX FIXME -- The system crashes when the stack is
+  \ used to hold the _fid_. That's why `tmp` is used at the
+  \ moment. The problem is something is left on the data stack
+  \ during the parsing.
 
 : output-option ( ca len -- )
   output-filename @ abort" More than one output file specified"
@@ -420,6 +441,7 @@ variable input-files# \ counter
   case
     arg.help-option    of help           endof
     arg.version-option of version-option endof
+    arg.input-option   of input-option   endof
     arg.output-option  of output-option  endof
     arg.verbose-option of verbose-option endof
     arg.level-option   of level-option   endof
