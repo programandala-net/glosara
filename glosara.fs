@@ -4,7 +4,7 @@
 
 \ XXX UNDER DEVELOPMENT
 
-: version  s" 0.9.0+201702150033" ;
+: version  s" 0.10.0+201702150223" ;
 
 \ ==============================================================
 \ Description
@@ -33,7 +33,8 @@ forth-wordlist set-current
 \ From Forth Foundation Library
 \ (http://irdvo.github.io/ffl/)
 
-include ffl/arg.fs \ argument parser
+require ffl/arg.fs \ argument parser
+require ffl/rgx.fs \ regular expressions
 
 \ From the Galope library
 \ (http://programandala.net/en.program.galope.html)
@@ -44,9 +45,10 @@ require galope/string-slash.fs
 \ require galope/trim.fs
 require galope/slash-name.fs
 require galope/first-name.fs
-\ require galope/replaced.fs
+require galope/replaced.fs
 
 require galope/tilde-tilde.fs \ XXX TMP -- for debugging
+
 
 \ ==============================================================
 \ Misc
@@ -133,6 +135,76 @@ variable entry-file
   \ Delete all temporary entry files.
 
 \ ==============================================================
+\ Cross references
+
+rgx-create name-link-rgx
+s" `\S+`" name-link-rgx rgx-compile 0= [if]
+  .( Compilation of regular expression failed on position ) .
+  quit
+[then]
+
+: /link-text ( n2 n1 -- len )
+  - 2 - ;
+  \ Convert start position _n1_ and end position _n2_ to the
+  \ length _len_ of the corresponding substring.
+
+: get-link-text ( ca1 len1 n2 n1 -- ca2 len2 )
+  2dup /link-text >r nip nip + 1+ r> ;
+  \ Extract from string _ca1 len1_ the link text that starts at
+  \ position _n1_ and ends before position _n2_.
+
+: 4dup  ( x1..x4 -- x1..x4 x1..x4 )
+  2over 2over ;
+
+2variable before-link-text
+2variable        link-text
+2variable  after-link-text
+
+: link ( ca1 len1 -- ca2 len2 )
+  0 name-link-rgx rgx-result   ( ca1 len1 n2 n1)
+  4dup get-link-text         link-text 2!
+  4dup nip nip        before-link-text 2!
+       drop /string    after-link-text 2!
+  before-link-text 2@
+  s" <<" s+ link-text 2@ string>hex s+
+    s" ," s+ link-text 2@ s+
+  s" >>" s+ after-link-text 2@ s+ ;
+  \ XXX TODO -- Factor.
+  \
+  \ Convert the first cross reference contained in entry line
+  \ _ca1 len1_ to an Asciidoctor markup, returning the modified
+  \ string _ca2 len2_.
+  \
+  \ Original notation:   `entryname`
+  \ Asciidoctor markup:  `<<ID,entryname>>`
+  \
+  \ Note: the backticks are ommitted in the result, in order to
+  \ prevent recursion in `linked?`. They are restored at the end
+  \ of `linked`.
+
+: restore-backticks ( ca1 len1 -- ca2 len2 )
+  s" `<<" s" <<" replaced
+  s" >>`" s" >>" replaced ;
+  \ Restore the backticks that where left out by `link`.
+  \ Add them to cross references contained in string _ca1 len1_.
+
+: linked? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
+  0 >r  begin   2dup name-link-rgx rgx-csearch -1 >
+                dup r> + >r
+        while   link
+        repeat  r> 0<> ;
+  \ If the entry line _ca1 len1_ contains cross references,
+  \ convert them to Asciidoctor markup and return the modified
+  \ string _ca2 len2_ and a true flag; else return the original
+  \ string and a false flag.
+
+: linked ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  linked? if restore-backticks then ;
+  \ If the entry line _ca1 len1_ contains cross references,
+  \ convert them to Asciidoctor markup and return the modified
+  \ string _ca2 len2_; else do nothing.
+
+\ ==============================================================
 \ Source parser
 
 255 constant /line-buffer
@@ -201,7 +273,7 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  type cr ;
+  linked type cr ;
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
@@ -234,7 +306,7 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
   \ Init the parser variables.
 
 : end-parsing ( -- )
-  stdout to outfile-id ;
+  close-entry-file  stdout to outfile-id ;
   \ Set `emit` and `type` to standard output.
 
 : parse-file ( fid -- )
@@ -251,10 +323,6 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
 
 \ ==============================================================
 \ Glossary
-
-  \ : output ( -- fid )
-  \ output-filename @ if create-output-file else stdout then ;
-  \ XXX OLD
 
 : >file ( ca1 len1 -- ca1 len1 | ca2 len2 )
   output-filename @ if s"  > " s+ output-filename 2@ s+ then ;
