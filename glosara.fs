@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.11.1+201702160024" ;
+: version  s" 0.12.0+201702160049" ;
 
 \ ==============================================================
 \ Description
@@ -349,48 +349,52 @@ create (heading-markup) max-headings-level chars allot
 \ Argument parser
 
 \ Create a new argument parser:
-s" Glosara" \ name
+s" glosara" \ name
 s" [ OPTION | INPUT-FILE ] ..." \ usage
 version
-s" Written by Marcos Cruz (programandala.net)" \ extra
+s" (C) 2015-2017 Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
-\ Add the default options:
+\ Add the default ?/--help option:
 arguments arg-add-help-option
+
+\ Add the default --version option:
 arguments arg-add-version-option
 
-\ Add the verbose option:
-4 constant arg.verbose-option
-'v'                       \ short option
-s" verbose"               \ long option
-s" activate verbose mode" \ description
-true                      \ switch type
-arg.verbose-option arguments arg-add-option
-
-\ Add the output option:
-5 constant arg.output-option
-'o'                     \ short option
-s" output"              \ long option
-s" set the output file" \ description
-false                   \ switch type
-arg.output-option arguments arg-add-option
-
-\ Add the headings level option:
-6 constant arg.level-option
-'l'                                 \ short option
-s" level"                           \ long option
-s" set the headings level (1..6)"   \ description
-false                               \ switch type
-arg.level-option arguments arg-add-option
-
-\ Add the input option:
-7 constant arg.input-option
+\ Add the -i/--input option:
+4 constant arg.input-option
 'i'               \ short option
 s" input"         \ long option
 s" set file that contains a list of input files (one per line)"
                   \ description
 false             \ switch type
 arg.input-option arguments arg-add-option
+
+\ Add the -l/--level option:
+5 constant arg.level-option
+'l'                                 \ short option
+s" level"                           \ long option
+s" set the headings level (1..6); "
+s" must be used before the input files or the --input option" s+
+                                    \ description
+false                               \ switch type
+arg.level-option arguments arg-add-option
+
+\ Add the -o/--output option:
+6 constant arg.output-option
+'o'                     \ short option
+s" output"              \ long option
+s" set the output file" \ description
+false                   \ switch type
+arg.output-option arguments arg-add-option
+
+\ Add the -v/--verbose option:
+7 constant arg.verbose-option
+'v'                       \ short option
+s" verbose"               \ long option
+s" activate verbose mode" \ description
+true                      \ switch type
+arg.verbose-option arguments arg-add-option
 
 : help ( -- )
   arguments arg-print-help ;
