@@ -1,18 +1,20 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2016-04-28
+:revdate: 2017-02-16
 
 == Description
 
 Glosara is a glosser for Forth sources. Its goal is to extract the
 glossary and modules documentation out of the sources and build the
-documents in Asciidoctor format.
+documents in Asciidoctor format, with cross references.
 
-At the begining Glosara was part of
+Glosara started as part of
 http://programandala.net/en.program.solo_forth.html[Solo Forth], in
-order to build its documentation, but soon it was developed apart.
+order to build its documentation, but it became an independent project
+soon.
 
-== Git repository
+== Current status
 
-The Git repository of Glosara was created on 2016-04-28 out of
-development backups. Later commits are real.
+Glosara is being used to build the documentation of Solo Forth and it
+works great. Nevertheless it's not ready to be installed because it
+depends on a library of the author that has not been published yet.
