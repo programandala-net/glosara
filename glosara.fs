@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.13.0+201702161655" ;
+: version  s" 0.14.0+201702161855" ;
 
 \ ==============================================================
 \ Description
@@ -82,6 +82,9 @@ s" .glosara.entry" 2constant entry-filename-extension
 
 variable output-file \ output file identifier
 
+: set-standard-output ( -- )
+  stdout to outfile-id ;
+
 : create-output-file ( -- fid )
   output-filename 2@ w/o create-file throw dup output-file ! ;
 
@@ -110,13 +113,34 @@ create null-filename /basefilename allot
 
 variable entry-file
 
-: close-entry-file ( -- )
-  entry-file @ ?dup if close-file throw entry-file off then ;
+: (close-entry-file) ( -- )
+  close-file throw entry-file off ;
   \ Close the glossary entry file.
 
+: close-entry-file ( -- )
+  entry-file @ ?dup if (close-entry-file) then ;
+  \ Close the glossary entry file, if needed.
+
+: file-exists? ( ca len -- )
+  file-status nip 0= ;
+
+: duplicated ( ca len -- )
+  set-standard-output
+  ." Error: Entry `" type ." ` is duplicated." abort ;
+  \ Abort with an error, because entry name _ca len_ is
+  \ duplicated.
+
+: ?unique ( ca1 len1 ca2 len2 -- )
+  file-exists? if duplicated else 2drop then ;
+  \ If filename _ca2 len2_, which corresponds to entry name _ca1
+  \ len1_, already exists, abort with an error.
+
+: (create-entry-file) ( ca len -- fid )
+  close-entry-file w/o create-file throw dup entry-file ! ;
+
 : create-entry-file ( ca len -- fid )
-  close-entry-file
-  entryname>filename w/o create-file throw dup entry-file ! ;
+  2dup entryname>filename 2dup 2>r ?unique 2r>
+  (create-entry-file) ;
   \ Create a file for glossary entry name _ca len_.
   \ If a previous entry file is open, close it.
 
@@ -319,7 +343,7 @@ create (heading-markup) max-headings-level chars allot
   \ Init the parser variables.
 
 : end-parsing ( -- )
-  close-entry-file  stdout to outfile-id ;
+  close-entry-file  set-standard-output ;
   \ Set `emit` and `type` to standard output.
 
 : parse-file ( fid -- )
