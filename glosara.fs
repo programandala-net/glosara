@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.12.0+201702160049" ;
+: version  s" 0.12.1+201702160101" ;
 
 \ ==============================================================
 \ Description
@@ -404,9 +404,9 @@ arg.verbose-option arguments arg-add-option
   verbose on s" Verbose mode is on" echo ;
 
 : level-option ( ca len -- )
-  0. 2swap >number
+  0. 2swap >number nip
   abort" Invalid headings level"
-  drop d>s dup min-headings-level max-headings-level within 0=
+  d>s dup min-headings-level max-headings-level 1+ within 0=
   abort" Headings level not in range 1..6"
   headings-level ! ;
 
