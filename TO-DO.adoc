@@ -22,3 +22,9 @@ of entry names each.
 Add an option to link the glossary entry to the file it was extracted
 from.
 
+.2017-02-16:
+
+Add an option to make a list of words, in order to detect duplicates.
+
+Simpler: add a check to detect duplicates.
+

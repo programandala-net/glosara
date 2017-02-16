@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.12.1+201702160101" ;
+: version  s" 0.13.0+201702161655" ;
 
 \ ==============================================================
 \ Description
@@ -282,8 +282,16 @@ create (heading-markup) max-headings-level chars allot
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
+2variable parsed-file
+
+: add-source-file ( -- )
+  cr ." Source file: +<" parsed-file 2@ type ." >+." cr ;
+
+: end-entry ( -- )
+  add-source-file  entry-line# off ;
+
 : process-entry-line ( ca len -- )
-  2dup end-of-entry? if   entry-line# off 2drop
+  2dup end-of-entry? if   2drop end-entry
                      else (process-entry-line) then ;
   \ Process input line _ca len_, which is part of a glossary
   \ entry, maybe its end markup.
@@ -322,6 +330,7 @@ create (heading-markup) max-headings-level chars allot
   \ print it to standard output.
 
 : parse-input-file ( ca len -- )
+  2dup parsed-file 2!
   r/o open-file throw dup parse-file close-file throw ;
   \ Extract the glossary information from file _ca len_ and
   \ print it to standard output.
