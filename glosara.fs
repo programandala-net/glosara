@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.14.0+201702161855" ;
+: version  s" 0.15.0+201702161855" ;
 
 \ ==============================================================
 \ Description
@@ -45,13 +45,14 @@ require galope/slash-name.fs
 require galope/first-name.fs
 require galope/replaced.fs
 
-require galope/tilde-tilde.fs \ XXX TMP -- for debugging
+\ require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
 
 \ ==============================================================
 \ Misc
 
-variable verbose verbose off \ flag: verbose mode?
+variable verbose  \ flag: verbose mode?
+variable unique   \ flag: unique mode?
 
 : echo ( ca len -- )
   verbose @ if  type cr  else  2drop  then ;
@@ -72,11 +73,42 @@ variable verbose verbose off \ flag: verbose mode?
   \ number per original character).
 
 \ ==============================================================
+\ Entry counters word list
+
+\ In order to manage duplicated entries, homonymous variables
+\ are created in a word list. Their current value is used as the
+\ suffix of their corresponding files.
+
+wordlist constant counters-wordlist
+
+: search-counters  ( ca len -- false | xt true )
+  counters-wordlist search-wordlist 0<> ;
+  \ If entry name _ca len_ has an associated counter, return its
+  \ _xt_ and _true_. Else return _false_.
+
+: known-counter ( xt -- n )
+  execute dup @ 1 rot +! ;
+  \ Return current value of entry counter _xt_, and increase its
+  \ value for the next time.
+
+: new-counter ( ca len -- 0 )
+  get-current >r counters-wordlist set-current nextname variable
+  r> set-current 1 latestxt execute ! 0 ;
+  \ Create a new entry counter for entry name _ca len_, and
+  \ return zero, its initial value.
+
+: entry-counter ( ca len -- n )
+  2dup search-counters if   nip nip known-counter
+                       else new-counter then ;
+  \ Create a new entry counter for entry name _ca len_, if not
+  \ done before, and return its current value _n_.
+
+\ ==============================================================
 \ Files
 
 s" /tmp/" 2constant temp-directory
 
-s" .glosara.entry" 2constant entry-filename-extension
+s" glosara.entry." 2constant entry-filename-prefix
 
 2variable output-filename
 
@@ -97,8 +129,14 @@ max-word-length 2 * chars constant /basefilename
 create null-filename /basefilename allot
        null-filename /basefilename '0' fill
 
+: entryname>suffix ( ca1 len2 -- ca2 len2 )
+  entry-counter unique @ 0= and c>hex s" -" 2swap s+ ;
+  \ Convert entry name _ca1 len2_ to its counter filename suffix
+  \ _ca2 len2_.
+
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
-  string>hex dup >r null-filename /basefilename r> - s+ ;
+  2dup  string>hex dup >r null-filename /basefilename r> - s+
+  2swap entryname>suffix s+ ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth
   \ word) to its temporary filename _ca2 len2_. The
   \ filename consists of `max-word-length` 8-bit hex numbers
@@ -106,7 +144,8 @@ create null-filename /basefilename allot
   \ trailing '0' digits to its maximum length.
 
 : entryname>filename ( ca1 len1 -- ca2 len2 )
-  entryname>basefilename entry-filename-extension s+
+  entryname>basefilename
+  entry-filename-prefix 2swap s+
   temp-directory 2swap s+ ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
   \ its temporary filename _ca2 len2_, including the path.
@@ -124,28 +163,16 @@ variable entry-file
 : file-exists? ( ca len -- )
   file-status nip 0= ;
 
-: duplicated ( ca len -- )
-  set-standard-output
-  ." Error: Entry `" type ." ` is duplicated." abort ;
-  \ Abort with an error, because entry name _ca len_ is
-  \ duplicated.
-
-: ?unique ( ca1 len1 ca2 len2 -- )
-  file-exists? if duplicated else 2drop then ;
-  \ If filename _ca2 len2_, which corresponds to entry name _ca1
-  \ len1_, already exists, abort with an error.
-
 : (create-entry-file) ( ca len -- fid )
   close-entry-file w/o create-file throw dup entry-file ! ;
 
 : create-entry-file ( ca len -- fid )
-  2dup entryname>filename 2dup 2>r ?unique 2r>
-  (create-entry-file) ;
+  entryname>filename (create-entry-file) ;
   \ Create a file for glossary entry name _ca len_.
   \ If a previous entry file is open, close it.
 
 : entry-files-pattern ( -- ca len )
-  temp-directory s" *" s+ entry-filename-extension s+ ;
+  temp-directory entry-filename-prefix s+ s" *" s+ ;
   \ Wildcard pattern for all temporary entry files.
 
 : delete-entry-files ( -- )
@@ -242,11 +269,11 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
 : end-of-entry? ( ca len -- f )
   s" }doc" str= ;
 
-: new-entry ( -- )
+: start-entry ( -- )
   1 entry-line# ! entry-header off header-status off ;
 
 : process-code-line ( ca len -- )
-  start-of-entry? if new-entry then ;
+  start-of-entry? if start-entry then ;
   \ Process input file line _ca len_.
 
 : entryname>id ( ca1 len1 -- ca2 len2 )
@@ -302,7 +329,7 @@ create (heading-markup) max-headings-level chars allot
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  cross-reference type cr ;
+  cross-reference type cr  ;
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
@@ -422,7 +449,16 @@ false                   \ switch type
 arg.output-option arguments arg-add-option
 
 \ Add the -v/--verbose option:
-7 constant arg.verbose-option
+7 constant arg.unique-option
+'u'                           \ short option
+s" unique"                    \ long option
+s" reject duplicated entries" \ description
+true                          \ switch type
+arg.unique-option arguments arg-add-option
+
+
+\ Add the -v/--verbose option:
+8 constant arg.verbose-option
 'v'                       \ short option
 s" verbose"               \ long option
 s" activate verbose mode" \ description
@@ -435,6 +471,9 @@ arg.verbose-option arguments arg-add-option
 
 : verbose-option ( -- )
   verbose on s" Verbose mode is on" echo ;
+
+: unique-option ( -- )
+  unique on s" Unique mode is on" echo ;
 
 : level-option ( ca len -- )
   0. 2swap >number nip
@@ -474,6 +513,7 @@ variable tmp  \ XXX TMP --
     arg.version-option of version-option endof
     arg.input-option   of input-option   endof
     arg.output-option  of output-option  endof
+    arg.unique-option  of unique-option  endof
     arg.verbose-option of verbose-option endof
     arg.level-option   of level-option   endof
     arg.non-option     of input-file     endof
@@ -488,7 +528,7 @@ variable tmp  \ XXX TMP --
 
 : init ( -- )
   delete-entry-files argc off
-  input-files# off verbose off output-filename off
+  input-files# off verbose off output-filename off unique off
   2 headings-level ! ;
 
 : options ( -- )
