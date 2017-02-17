@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.15.0+201702161855" ;
+: version  s" 0.16.0+201702180000" ;
 
 \ ==============================================================
 \ Description
@@ -182,8 +182,26 @@ variable entry-file
 \ ==============================================================
 \ Cross references
 
+\ Glosara recognizes any string between backticks (the
+\ Asciidoctor markup for monospace) as a Forth word, provided
+\ the string has no space and there's one space before the
+\ opening backtick.  These Forth words are converted to cross
+\ references, i.e. links to the corresponding glossary entry.
+\
+\ In order to include in the documentation also Forth words that
+\ are not part of the system, and therefore must not be
+\ converted to links, the unconstrained notation of Asciidoctor
+\ can be used instead, i.e. double backticks.
+\
+\ Example extracted from the documentation of Solo Forth:
+\ ____
+\
+\   This word is not Forth-83's ``?branch``, [...]
+\   Solo Forth borrows `0branch` from fig-Forth [...]
+\ ____
+
 rgx-create name-link-rgx
-s" `\S+`" name-link-rgx rgx-compile 0= [if]
+s" \s`[^`]\S*`" name-link-rgx rgx-compile 0= [if]
   .( Compilation of regular expression failed on position ) .
   quit
 [then]
@@ -206,7 +224,7 @@ s" `\S+`" name-link-rgx rgx-compile 0= [if]
 2variable  after-link-text
 
 : link ( ca1 len1 -- ca2 len2 )
-  0 name-link-rgx rgx-result   ( ca1 len1 n2 n1)
+  0 name-link-rgx rgx-result 1+ ( ca1 len1 n2 n1)
   4dup get-link-text         link-text 2!
   4dup nip nip        before-link-text 2!
        drop /string    after-link-text 2!
