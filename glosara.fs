@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.16.0+201702180000" ;
+: version  s" 0.16.1+201702181323" ;
 
 \ ==============================================================
 \ Description
@@ -354,7 +354,7 @@ create (heading-markup) max-headings-level chars allot
 2variable parsed-file
 
 : add-source-file ( -- )
-  cr ." Source file: +<" parsed-file 2@ type ." >+." cr ;
+  cr ." Source file: <" parsed-file 2@ type ." >." cr ;
 
 : end-entry ( -- )
   add-source-file  entry-line# off ;
