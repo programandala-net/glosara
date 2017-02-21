@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.16.1+201702181323" ;
+: version  s" 0.16.2+201702220022" ;
 
 \ ==============================================================
 \ Description
@@ -131,7 +131,7 @@ create null-filename /basefilename allot
 
 : entryname>suffix ( ca1 len2 -- ca2 len2 )
   entry-counter unique @ 0= and c>hex s" -" 2swap s+ ;
-  \ Convert entry name _ca1 len2_ to its counter filename suffix
+  \ Convert entry name _ca1 len2_ to its filename counter suffix
   \ _ca2 len2_.
 
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
@@ -312,7 +312,11 @@ create (heading-markup) max-headings-level chars allot
 : .heading-markup ( -- ) heading-markup type space ;
 
 : heading ( ca len -- )
-  2dup entryname>id type cr .heading-markup type cr ;
+  2dup entryname>id type cr .heading-markup
+  ." pass:c[" type ." ]" cr ;
+  \ Create a glossary heading for entry name _ca len_.
+  \ The Asciidoctor inline macro `pass:[]` is used to force
+  \ replacement of special characters to HTML entities.
 
 : code-block ( ca len -- )
   ." ----" cr type cr ;
