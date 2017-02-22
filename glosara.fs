@@ -11,8 +11,8 @@
 \ documentation out of Forth sources, and creates a glossary
 \ document in Asciidoctor format.
 
-\ Glosara is written in Forth with Gforth
-\ (http://gnu.org/software/gforth).
+\ Glosara is written in Forth (http://forth-standard.org) with
+\ Gforth (http://gnu.org/software/gforth).
 
 \ ==============================================================
 \ Author and license

@@ -1,6 +1,12 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-02-16
+:revdate: 2017-02-21
+
+.2017-02-22:
+
+Fix the regular expression: the space at the start makes Forth words
+at the start of a line not be recognized. See Solo Forth
+`+field-unopt`.
 
 .2017-02-15:
 
