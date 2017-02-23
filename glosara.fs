@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.17.0+201702231707" ;
+: version  s" 0.18.0+201702231725" ;
 
 \ ==============================================================
 \ Description
@@ -268,18 +268,34 @@ s" \s`[^`]\S*`" name-link-rgx rgx-compile 0= [if]
   \ Restore the backticks that where left out by `link`.
   \ Add them to cross references contained in string _ca1 len1_.
 
-: cross-reference? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
+: implicit-cross-references? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
   0 >r  begin   2dup name-link-rgx rgx-csearch -1 >
                 dup r> + >r
         while   link
         repeat  r> 0<> ;
-  \ If the entry line _ca1 len1_ contains cross references,
-  \ convert them to Asciidoctor markup and return the modified
-  \ string _ca2 len2_ and a true flag; else return the original
-  \ string and a false flag.
+  \ If the entry line _ca1 len1_ contains implicit cross
+  \ references, i.e. words sourrounded by backticks, convert
+  \ them to Asciidoctor markup and return the modified string
+  \ _ca2 len2_ and a true flag; else return the original string
+  \ and a false flag.
 
-: cross-reference ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  cross-reference? if restore-backticks then ;
+: implicit-cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  implicit-cross-references? if restore-backticks then ;
+  \ If the entry line _ca1 len1_ contains implicit cross
+  \ references, i.e. words sourrounded by backticks, convert
+  \ them to Asciidoctor markup and return the modified string
+  \ _ca2 len2_; else do nothing.
+
+
+: explicit-cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  ;
+  \ XXX TODO --
+  \ If the entry line _ca1 len1_ contains explicit and
+  \ unfinished Asciidoctor cross references, finish them and
+  \ return the modified string _ca2 len2_; else do nothing.
+
+: cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  implicit-cross-references explicit-cross-references ;
   \ If the entry line _ca1 len1_ contains cross references,
   \ convert them to Asciidoctor markup and return the modified
   \ string _ca2 len2_; else do nothing.
@@ -368,7 +384,7 @@ create (heading-markup) max-headings-level chars allot
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  cross-reference type cr  ;
+  cross-references type cr  ;
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
