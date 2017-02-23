@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.16.2+201702220022" ;
+: version  s" 0.17.0+201702231707" ;
 
 \ ==============================================================
 \ Description
@@ -44,9 +44,17 @@ require galope/string-slash.fs
 require galope/slash-name.fs
 require galope/first-name.fs
 require galope/replaced.fs
+require galope/minus-path.fs \ `-path`
+require galope/minus-extension.fs \ `-extension`
 
 \ require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
+\ ==============================================================
+\ Dependencies
+
+\ This program depends on the fact that Gforth allocates all
+\ strings in the heap. This may be changed in a future version,
+\ in order to make the code more portable.
 
 \ ==============================================================
 \ Misc
@@ -112,6 +120,8 @@ s" glosara.entry." 2constant entry-filename-prefix
 
 2variable output-filename
 
+2variable parsed-file
+
 variable output-file \ output file identifier
 
 : set-standard-output ( -- )
@@ -129,10 +139,17 @@ max-word-length 2 * chars constant /basefilename
 create null-filename /basefilename allot
        null-filename /basefilename '0' fill
 
-: entryname>suffix ( ca1 len2 -- ca2 len2 )
+: entryname>count-suffix ( ca1 len2 -- ca2 len2 )
   entry-counter unique @ 0= and c>hex s" -" 2swap s+ ;
   \ Convert entry name _ca1 len2_ to its filename counter suffix
   \ _ca2 len2_.
+
+: tidy-parsed-file ( -- ca len )
+  parsed-file 2@ -path -extension ;
+
+: entryname>suffix ( ca1 len2 -- ca2 len2 )
+  entryname>count-suffix s" -" s+ tidy-parsed-file s+ ;
+  \ Convert entry name _ca1 len2_ to its filename suffix _ca2 len2_.
 
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
   2dup  string>hex dup >r null-filename /basefilename r> - s+
@@ -355,8 +372,6 @@ create (heading-markup) max-headings-level chars allot
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
-2variable parsed-file
-
 : add-source-file ( -- )
   cr ." Source file: <" parsed-file 2@ type ." >." cr ;
 
@@ -411,9 +426,15 @@ create (heading-markup) max-headings-level chars allot
 \ ==============================================================
 \ Glossary
 
+: (>file) ( ca1 len1 -- ca2 len2 )
+  s"  > " s+ output-filename 2@ s+ ;
+  \ Complete shell command _ca1 len1_ with the redirection to
+  \ the output file specified in the command line, resulting
+  \ _ca2 len2_.
+
 : >file ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  output-filename @ if s"  > " s+ output-filename 2@ s+ then ;
-  \ I an output file was specified in the command line, add its
+  output-filename @ if (>file) then ;
+  \ If an output file was specified in the command line, add its
   \ redirection to the given shell command _ca1 len1_, resulting
   \ _ca2 len2_. Otherwise do nothing.
 
