@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.18.0+201702231725" ;
+: version  s" 0.18.1+201702231749" ;
 
 \ ==============================================================
 \ Description
@@ -199,26 +199,24 @@ variable entry-file
 \ ==============================================================
 \ Cross references
 
-\ Glosara recognizes any string between backticks (the
-\ Asciidoctor markup for monospace) as a Forth word, provided
-\ the string has no space and there's one space before the
-\ opening backtick.  These Forth words are converted to cross
-\ references, i.e. links to the corresponding glossary entry.
+\ Glosara recognizes any string without spaces and between
+\ backticks (the Asciidoctor markup for monospace) as an
+\ implicit cross reference, i.e. a link to a Forth word in the
+\ glossary.
 \
 \ In order to include in the documentation also Forth words that
 \ are not part of the system, and therefore must not be
 \ converted to links, the unconstrained notation of Asciidoctor
 \ can be used instead, i.e. double backticks.
 \
-\ Example extracted from the documentation of Solo Forth:
-\ ____
+\ Example extracted from the documentation of Solo Forth: ____
 \
-\   This word is not Forth-83's ``?branch``, [...]
-\   Solo Forth borrows `0branch` from fig-Forth [...]
-\ ____
+\   This word is not Forth-83's ``?branch``, [...] Solo Forth
+\   borrows `0branch` from fig-Forth [...] ____
 
 rgx-create name-link-rgx
-s" \s`[^`]\S*`" name-link-rgx rgx-compile 0= [if]
+\ s" `[^`]\S*[^`]`" name-link-rgx rgx-compile 0= [if]
+s" `\S+`" name-link-rgx rgx-compile 0= [if]
   .( Compilation of regular expression failed on position ) .
   quit
 [then]
@@ -241,26 +239,29 @@ s" \s`[^`]\S*`" name-link-rgx rgx-compile 0= [if]
 2variable  after-link-text
 
 : link ( ca1 len1 -- ca2 len2 )
-  0 name-link-rgx rgx-result 1+ ( ca1 len1 n2 n1)
+  0 name-link-rgx rgx-result ( ca1 len1 n2 n1)
   4dup get-link-text         link-text 2!
   4dup nip nip        before-link-text 2!
        drop /string    after-link-text 2!
   before-link-text 2@
   s" <<" s+ link-text 2@ string>hex s+
-    s" ," s+ link-text 2@ s+
+    s" , " s+ link-text 2@ s+
   s" >>" s+ after-link-text 2@ s+ ;
   \ XXX TODO -- Factor.
   \
-  \ Convert the first cross reference contained in entry line
-  \ _ca1 len1_ to an Asciidoctor markup, returning the modified
-  \ string _ca2 len2_.
+  \ Convert the first implicit cross reference (a word between
+  \ backticks, e.g.  `entryname`) contained in entry line _ca1
+  \ len1_ to Asciidoctor markup (also between backticks, e.g.
+  \ `<<ID, entryname>>`), returning the modified string _ca2
+  \ len2_.
   \
-  \ Original notation:   `entryname`
-  \ Asciidoctor markup:  `<<ID,entryname>>`
+  \ The backticks are ommitted in the result, in order to
+  \ prevent recursion in `implicit-cross-references?`. They are
+  \ restored later.
   \
-  \ Note: the backticks are ommitted in the result, in order to
-  \ prevent recursion in `cross-reference?`. They are restored at the end
-  \ of `cross-reference`.
+  \ In the result string, the space after the comma is
+  \ important: It's added in order to prevent later mismatches
+  \ and recursion. It has no effect to Asciidoctor.
 
 : restore-backticks ( ca1 len1 -- ca2 len2 )
   s" `<<" s" <<" replaced
@@ -294,8 +295,32 @@ s" \s`[^`]\S*`" name-link-rgx rgx-compile 0= [if]
   \ unfinished Asciidoctor cross references, finish them and
   \ return the modified string _ca2 len2_; else do nothing.
 
+: double-backticks-substitution ( -- ca len )
+  s" [Unconstrained monospace markup was here!]" ;
+  \ The temporary string used to replace double backticks.
+
+: preserve-double-backticks ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  double-backticks-substitution s" ``" replaced ;
+  \ Replace all double backticks in _ca1 len1_ with a temporary
+  \ string.
+  \
+  \ XXX TODO -- Double backticks should be ignored by the
+  \ regular expression. But it seems it can not be done with the
+  \ current version of Forth Foundation Library.  This
+  \ alternative temporary method is rudimentary, but it works,
+  \ provided no Forth word mentioned in the documentation has a
+  \ double backtick in its name...
+
+: restore-double-backticks ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  s" ``" double-backticks-substitution replaced ;
+  \ Restore all double backticks that were in _ca1 len1_,
+  \ replacing the temporary string used by
+  \ `preserve-double-backticks`.
+
 : cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  implicit-cross-references explicit-cross-references ;
+  preserve-double-backticks
+  implicit-cross-references explicit-cross-references
+  restore-double-backticks ;
   \ If the entry line _ca1 len1_ contains cross references,
   \ convert them to Asciidoctor markup and return the modified
   \ string _ca2 len2_; else do nothing.
