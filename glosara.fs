@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.18.1+201702231749" ;
+: version  s" 0.19.0+201702241524" ;
 
 \ ==============================================================
 \ Description
@@ -111,6 +111,12 @@ wordlist constant counters-wordlist
   \ Create a new entry counter for entry name _ca len_, if not
   \ done before, and return its current value _n_.
 
+: entry-counter@ ( ca len -- n )
+  search-counters 0= abort" Unknown entry counter"
+  known-counter ;
+  \ Return the current value _n_ of the entry counter of entry
+  \ name _ca len_.
+
 \ ==============================================================
 \ Files
 
@@ -144,11 +150,28 @@ create null-filename /basefilename allot
   \ Convert entry name _ca1 len2_ to its filename counter suffix
   \ _ca2 len2_.
 
-: tidy-parsed-file ( -- ca len )
-  parsed-file 2@ -path -extension ;
+: slashes>hyphens ( ca len -- ca' len' )
+  s" -" s" /" replaced ;
+  \ Replace slashes in _ca len_ with hyphens.
+
+: dots>hyphens ( ca len -- ca' len' )
+  s" -" s" ." replaced ;
+  \ Replace dots in _ca len_ with hyphens.
+
+: filename>xreflabel-suffix ( ca len -- ca' len' )
+  s" -" 2swap slashes>hyphens dots>hyphens s+ ;
+  \ Convert filename _ca len_ to string _ca' len'_ suitable as
+  \ part of a xreflabel (HTML id attribute).  HTML 5 supports
+  \ any character in an ID, but it's safer to convert characters
+  \ not supported by previous standards.
+  \
+  \ XXX TODO -- Complete the conversion of special characters.
+
+: xreflabel-file-suffix ( -- ca len )
+  parsed-file 2@ filename>xreflabel-suffix ;
 
 : entryname>suffix ( ca1 len2 -- ca2 len2 )
-  entryname>count-suffix s" -" s+ tidy-parsed-file s+ ;
+  entryname>count-suffix s" -" s+ xreflabel-file-suffix s+ ;
   \ Convert entry name _ca1 len2_ to its filename suffix _ca2 len2_.
 
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
@@ -197,11 +220,11 @@ variable entry-file
   \ Delete all temporary entry files.
 
 \ ==============================================================
-\ Cross references
+\ Links (cross references)
 
 \ Glosara recognizes any string without spaces and between
 \ backticks (the Asciidoctor markup for monospace) as an
-\ implicit cross reference, i.e. a link to a Forth word in the
+\ implicit link, i.e. a cross reference to a Forth word in the
 \ glossary.
 \
 \ In order to include in the documentation also Forth words that
@@ -209,90 +232,189 @@ variable entry-file
 \ converted to links, the unconstrained notation of Asciidoctor
 \ can be used instead, i.e. double backticks.
 \
-\ Example extracted from the documentation of Solo Forth: ____
+\ Example extracted from the documentation of Solo Forth:
+
+\ ____
 \
 \   This word is not Forth-83's ``?branch``, [...] Solo Forth
-\   borrows `0branch` from fig-Forth [...] ____
+\   borrows `0branch` from fig-Forth [...]
+\ ____
 
-rgx-create name-link-rgx
-\ s" `[^`]\S*[^`]`" name-link-rgx rgx-compile 0= [if]
-s" `\S+`" name-link-rgx rgx-compile 0= [if]
-  .( Compilation of regular expression failed on position ) .
+rgx-create implicit-link-rgx
+s" `\S+`" implicit-link-rgx
+rgx-compile 0= [if]
+  cr .( Compilation of regular expression)
+  cr .( for implicit link failed on position ) . cr
   quit
 [then]
 
-: /link-text ( n2 n1 -- len )
-  - 2 - ;
-  \ Convert start position _n1_ and end position _n2_ to the
-  \ length _len_ of the corresponding substring.
+rgx-create explicit-link-rgx
+s" `<<(\S+)?\s*,\s*(\S+)>>`" explicit-link-rgx
+rgx-compile 0= [if]
+  cr .( Compilation of regular expression)
+  cr .( for explicit link failed on position ) . cr
+  quit
+[then]
 
-: get-link-text ( ca1 len1 n2 n1 -- ca2 len2 )
-  2dup /link-text >r nip nip + 1+ r> ;
-  \ Extract from string _ca1 len1_ the link text that starts at
-  \ position _n1_ and ends before position _n2_.
+: match>len ( n2 n1 -- len )
+  - ;
+  \ Convert rgx match result start position _n1_ and end
+  \ position _n2_ to the length _len_ of the corresponding
+  \ substring.
+
+: >implicit-link-text ( ca1 len1 +n2 +n1 -- ca2 len2 )
+  2dup match>len 2 - >r nip nip + 1+ r> ;
+  \ Extract from string _ca1 len1_ the link text of the implicit
+  \ link that starts at position _+n1_ and ends before position
+  \ _+n2_.
 
 : 4dup  ( x1..x4 -- x1..x4 x1..x4 )
   2over 2over ;
 
-2variable before-link-text
-2variable        link-text
-2variable  after-link-text
+: entryname>common-id ( ca1 len1 -- ca2 len2 )
+  string>hex s" entry" 2swap s+ ;
+  \ Create a cross reference label _ca2 len2_ from entry name
+  \ _ca1 len1_.
 
-: link ( ca1 len1 -- ca2 len2 )
-  0 name-link-rgx rgx-result ( ca1 len1 n2 n1)
-  4dup get-link-text         link-text 2!
-  4dup nip nip        before-link-text 2!
-       drop /string    after-link-text 2!
-  before-link-text 2@
-  s" <<" s+ link-text 2@ string>hex s+
-    s" , " s+ link-text 2@ s+
-  s" >>" s+ after-link-text 2@ s+ ;
-  \ XXX TODO -- Factor.
+: ?filename ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  ?dup 0= if drop parsed-file 2@ then ;
+  \ If filename _ca1 len1_ is empty, return the currently parsed
+  \ file _ca2 len2_ instead.
   \
-  \ Convert the first implicit cross reference (a word between
-  \ backticks, e.g.  `entryname`) contained in entry line _ca1
-  \ len1_ to Asciidoctor markup (also between backticks, e.g.
-  \ `<<ID, entryname>>`), returning the modified string _ca2
-  \ len2_.
+  \ This makes markup lighter: Explicit links with an empty
+  \ xreflabel point to a word of the current file.
   \
-  \ The backticks are ommitted in the result, in order to
-  \ prevent recursion in `implicit-cross-references?`. They are
-  \ restored later.
+  \ Example: `<<,i>>`.
+
+: >unique-id ( ca1 len1 ca2 len2 -- ca3 len3 )
+  ?filename filename>xreflabel-suffix
+  2swap entryname>common-id 2swap s+ ;
+  \ Create a unique cross reference label _ca3 len3_ from entry
+  \ name _ca1 len1_ and filename_ca2 len2_.
+
+: entryname>unique-id ( ca1 len1 -- ca2 len2 )
+  parsed-file 2@ >unique-id ;
+  \ Create a unique cross reference label _ca2 len2_ from entry
+  \ name _ca1 len1_ and the currently parsed file.
+
+2variable before-link
+2variable xreflabel
+2variable link-text
+2variable after-link
+
+s" [backtick-here][begin-cross-reference-here]" 2constant `<<
+s" [end-cross-reference-here][backtick-here]" 2constant >>`
+
+: match>before  ( ca1 len1 +n2 +n1 -- ca1 len2 )
+  nip nip ;
+
+: match>after  ( ca1 len1 +n2 +n1 -- ca2 len2 )
+  drop /string ;
+
+: prepare-implicit-link ( ca len -- )
+  0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
+  4dup >implicit-link-text  link-text 2!
+  4dup match>before before-link 2!
+       match>after after-link 2! ;
+  \ Prepare the first implicit link found in string _ca1 len1_
+  \ by extracting its pieces into variables.
+  \
+  \ XXX TODO -- Use the stack instead of variables.
+
+: build-implicit-link ( -- ca len )
+  before-link 2@ `<< s+ link-text 2@ entryname>common-id s+
+                     s" , pass:c[" s+ link-text 2@ s+ s" ]" s+
+                 >>` s+ after-link 2@ s+ ;
+  \ Build the implicit link from its pieces.
+  \
+  \ XXX TODO -- Use the stack instead of variables.
+  \ XXX TODO -- Factor and combine with `build-implicit-link`.
+
+: implicit-link ( ca1 len1 -- ca2 len2 )
+  prepare-implicit-link build-implicit-link ;
+  \ Convert the first implicit link (a word between backticks,
+  \ e.g.  `entryname`) contained in entry line _ca1 len1_ to
+  \ Asciidoctor markup (e.g.  <<ID, entryname>>), returning the
+  \ modified string _ca2 len2_.
+  \
+  \ In order to prevent recursion in `implicit-links?`,
+  \ backticks in the result string are replaced with a temporary
+  \ string.  They are restored later.
   \
   \ In the result string, the space after the comma is
   \ important: It's added in order to prevent later mismatches
   \ and recursion. It has no effect to Asciidoctor.
+  \
+  \ XXX TODO -- Factor/combine with `explicit-link`.
 
-: restore-backticks ( ca1 len1 -- ca2 len2 )
-  s" `<<" s" <<" replaced
-  s" >>`" s" >>" replaced ;
-  \ Restore the backticks that where left out by `link`.
-  \ Add them to cross references contained in string _ca1 len1_.
+: finish-links ( ca1 len1 -- ca2 len2 )
+  s" `<<" `<< replaced
+  s" >>`" >>` replaced ;
+  \ Replace the temporary markup in _ca1 len1_.
 
-: implicit-cross-references? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
-  0 >r  begin   2dup name-link-rgx rgx-csearch -1 >
+: implicit-links? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
+  0 >r  begin   2dup implicit-link-rgx rgx-csearch -1 >
                 dup r> + >r
-        while   link
+        while   implicit-link
         repeat  r> 0<> ;
-  \ If the entry line _ca1 len1_ contains implicit cross
-  \ references, i.e. words sourrounded by backticks, convert
-  \ them to Asciidoctor markup and return the modified string
-  \ _ca2 len2_ and a true flag; else return the original string
-  \ and a false flag.
+  \ If the entry line _ca1 len1_ contains implicit links, i.e.
+  \ words sourrounded by backticks, convert them to Asciidoctor
+  \ markup and return the modified string _ca2 len2_ and a true
+  \ flag; else return the original string and a false flag.
 
-: implicit-cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  implicit-cross-references? if restore-backticks then ;
-  \ If the entry line _ca1 len1_ contains implicit cross
-  \ references, i.e. words sourrounded by backticks, convert
-  \ them to Asciidoctor markup and return the modified string
-  \ _ca2 len2_; else do nothing.
+: implicit-links ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  implicit-links? drop ;
+  \ If the entry line _ca1 len1_ contains implicit links, i.e.
+  \ words sourrounded by backticks, convert them to Asciidoctor
+  \ markup and return the modified string _ca2 len2_; else do
+  \ nothing.
 
+: match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
+  2dup match>len >r nip nip + r> ;
+  \ Extract from string _ca1 len1_ the link text of the explicit
+  \ link that starts at position _+n1_ and ends before position
+  \ _+n2_.
 
-: explicit-cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  ;
-  \ XXX TODO --
+: prepare-explicit-link ( ca len -- )
+  2>r
+  2r@ 1 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
+        match>substring xreflabel 2!
+  2r@ 2 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
+        match>substring link-text 2!
+  2r> 0 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
+        4dup match>before before-link 2!
+             match>after  after-link  2! ;
+  \ Prepare the first explicit link found in string _ca len_ by
+  \ extracting its pieces into variables.
+  \
+  \ XXX TODO -- Use the stack instead of variables.
+
+: build-explicit-link ( -- ca len )
+  before-link 2@ `<< s+ link-text 2@ xreflabel 2@ >unique-id s+
+                     s" , pass:c[" s+ link-text 2@ s+ s" ]" s+
+                 >>` s+ after-link 2@ s+ ;
+  \ Build the explicit link from its pieces.
+  \
+  \ XXX TODO -- Use the stack instead of variables.
+  \ XXX TODO -- Factor and combine with `build-implicit-link`.
+
+: explicit-link ( ca1 len1 -- ca2 len2 )
+  prepare-explicit-link build-explicit-link ;
+
+: explicit-links? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
+  0 >r  begin   2dup explicit-link-rgx rgx-csearch -1 >
+                dup r> + >r
+        while   explicit-link
+        repeat  r> 0<> ;
   \ If the entry line _ca1 len1_ contains explicit and
-  \ unfinished Asciidoctor cross references, finish them and
+  \ unfinished Asciidoctor links, finish them and
+  \ return the modified string _ca2 len2_ and a true flag; else
+  \ return the original string and a false flag.
+
+: explicit-links ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  explicit-links? drop ;
+  \ If the entry line _ca1 len1_ contains explicit and
+  \ unfinished Asciidoctor links, finish them and
   \ return the modified string _ca2 len2_; else do nothing.
 
 : double-backticks-substitution ( -- ca len )
@@ -303,13 +425,6 @@ s" `\S+`" name-link-rgx rgx-compile 0= [if]
   double-backticks-substitution s" ``" replaced ;
   \ Replace all double backticks in _ca1 len1_ with a temporary
   \ string.
-  \
-  \ XXX TODO -- Double backticks should be ignored by the
-  \ regular expression. But it seems it can not be done with the
-  \ current version of Forth Foundation Library.  This
-  \ alternative temporary method is rudimentary, but it works,
-  \ provided no Forth word mentioned in the documentation has a
-  \ double backtick in its name...
 
 : restore-double-backticks ( ca1 len1 -- ca1 len1 | ca2 len2 )
   s" ``" double-backticks-substitution replaced ;
@@ -317,13 +432,28 @@ s" `\S+`" name-link-rgx rgx-compile 0= [if]
   \ replacing the temporary string used by
   \ `preserve-double-backticks`.
 
-: cross-references ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  preserve-double-backticks
-  implicit-cross-references explicit-cross-references
+: links ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  preserve-double-backticks explicit-links
+                            implicit-links finish-links
   restore-double-backticks ;
-  \ If the entry line _ca1 len1_ contains cross references,
+  \ If the entry line _ca1 len1_ contains links,
   \ convert them to Asciidoctor markup and return the modified
   \ string _ca2 len2_; else do nothing.
+  \
+  \ Note: The order matters. Explicit links must be treated
+  \ first. Otherwise, a explicit link without a space at any
+  \ side of the comma will be taken for a implicit link.
+  \ Example:
+  \
+  \   `<<file,entryname>>`
+  \
+  \ XXX TODO -- Double backticks should be ignored by the
+  \ regular expression. But it seems it can not be done with the
+  \ current version of Forth Foundation Library.  This
+  \ alternative temporary method, preserving and restoring them
+  \ with text substitutions, is rudimentary, but it works,
+  \ provided no Forth word mentioned in the documentation has a
+  \ double backtick in its name...
 
 \ ==============================================================
 \ Source parser
@@ -352,11 +482,10 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
   start-of-entry? if start-entry then ;
   \ Process input file line _ca len_.
 
-: entryname>id ( ca1 len1 -- ca2 len2 )
-  s" [#" 2swap string>hex s+ s" ]" s+ ;
-  \ Convert word name _ca1 len1_ to an Asciidoctor attribute
-  \ list _ca2 len2_ containing the corresponding id block
-  \ attribute.
+: entryname>common-anchor ( ca1 len1 -- ca2 len2 )
+  s" [[" 2swap entryname>common-id s+ s" ]]" s+ ;
+  \ Convert word name _ca1 len1_ to an Asciidoctor inline anchor
+  \ _ca2 len2_, which is common to all homonymous entries.
 
       variable headings-level
 1 constant min-headings-level
@@ -369,12 +498,33 @@ create (heading-markup) max-headings-level chars allot
 
 : .heading-markup ( -- ) heading-markup type space ;
 
-: heading ( ca len -- )
-  2dup entryname>id type cr .heading-markup
-  ." pass:c[" type ." ]" cr ;
-  \ Create a glossary heading for entry name _ca len_.
+: common-anchor ( ca len -- )
+  2dup entry-counter@ 1 = if   entryname>common-anchor type
+                          else 2drop then ;
+  \ If entry name _ca len_ is the first one with its name,
+  \ create a common anchor for it.
+
+: heading-attr-list ( ca len -- )
+  cr ." [#" entryname>unique-id type ." ]" cr ;
+  \ Create the Asciidoctor attribute list for entry name _ca1
+  \ len1_.  The attribute list contains only the corresponding
+  \ id block attribute, which is unique for each entry.
+
+: heading-line ( ca len )
+  .heading-markup 2dup common-anchor ." pass:c[" type ." ]" cr ;
+  \ Create a glossary heading line for entry name _ca len_.
   \ The Asciidoctor inline macro `pass:[]` is used to force
-  \ replacement of special characters to HTML entities.
+  \ replacement of special characters of Forth names (e.g. '<')
+  \ to HTML entities.
+
+: heading ( ca len -- )
+  2dup heading-attr-list heading-line ;
+  \ Create a glossary heading for entry name _ca len_.
+  \
+  \ Note: When the common anchor is created on its own line,
+  \ before the attribute list of the heading, Asciidoctor
+  \ ignores it during the conversion to HTML. That's why it's
+  \ created as part of the heading line.
 
 : code-block ( ca len -- )
   ." ----" cr type cr ;
@@ -409,7 +559,7 @@ create (heading-markup) max-headings-level chars allot
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  cross-references type cr  ;
+  links type cr  ;
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
@@ -438,10 +588,6 @@ create (heading-markup) max-headings-level chars allot
 
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
-
-  \ XXX OLD
-  \ : init-output ( -- )
-  \ output-filename @ if create-output-file then ;
 
 : begin-parsing ( -- )
   entry-line# off entry-header off header-status off ;
