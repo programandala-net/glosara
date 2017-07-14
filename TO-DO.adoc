@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-02-23
+:revdate: 2017-07-14
 
 .2017-02-15:
 
@@ -18,3 +18,6 @@ of entry names each.
 Add an option to link the glossary entry to the file it was extracted
 from.
 
+.2017-07-14:
+
+Fix `input-option`.

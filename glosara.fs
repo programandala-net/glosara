@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version  s" 0.19.0+201702241524" ;
+: version s" 0.19.0+201707141927" ;
 
 \ ==============================================================
 \ Description
@@ -59,23 +59,26 @@ require galope/minus-extension.fs \ `-extension`
 \ ==============================================================
 \ Misc
 
-variable verbose  \ flag: verbose mode?
-variable unique   \ flag: unique mode?
+variable verbose
+  \ Flag: verbose mode?
+
+variable unique
+  \ Flag: unique mode?
 
 : echo ( ca len -- )
-  verbose @ if  type cr  else  2drop  then ;
+  verbose @ if type cr else 2drop then ;
   \ Print the string _ca len_ if `verbose` is on.
 
 \ ==============================================================
 \ Strings
 
 : c>hex ( c -- ca len )
-  base @ >r hex  s>d <# # # #>  r> base ! ;
+  base @ >r hex s>d <# # # #> r> base ! ;
   \ Convert a character _c_ to a 2-character string _ca len_
   \ with its hex value.
 
 : string>hex ( ca1 len1 -- ca2 len2 )
-  s" " 2swap bounds do  i c@ c>hex s+  loop ;
+  s" " 2swap bounds do i c@ c>hex s+ loop ;
   \ Return a string _ca2 len2_ which consists of the hex values
   \ of the characters of string _ca1 len1_ (one 2-digit hex
   \ number per original character).
@@ -89,7 +92,7 @@ variable unique   \ flag: unique mode?
 
 wordlist constant counters-wordlist
 
-: search-counters  ( ca len -- false | xt true )
+: search-counters ( ca len -- false | xt true )
   counters-wordlist search-wordlist 0<> ;
   \ If entry name _ca len_ has an associated counter, return its
   \ _xt_ and _true_. Else return _false_.
@@ -161,7 +164,7 @@ create null-filename /basefilename allot
 : filename>xreflabel-suffix ( ca len -- ca' len' )
   s" -" 2swap slashes>hyphens dots>hyphens s+ ;
   \ Convert filename _ca len_ to string _ca' len'_ suitable as
-  \ part of a xreflabel (HTML id attribute).  HTML 5 supports
+  \ part of a xreflabel (HTML id attribute). HTML 5 supports
   \ any character in an ID, but it's safer to convert characters
   \ not supported by previous standards.
   \
@@ -172,16 +175,17 @@ create null-filename /basefilename allot
 
 : entryname>suffix ( ca1 len2 -- ca2 len2 )
   entryname>count-suffix s" -" s+ xreflabel-file-suffix s+ ;
-  \ Convert entry name _ca1 len2_ to its filename suffix _ca2 len2_.
+  \ Convert entry name _ca1 len2_ to its filename suffix _ca2
+  \ len2_.
 
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
-  2dup  string>hex dup >r null-filename /basefilename r> - s+
+  2dup string>hex dup >r null-filename /basefilename r> - s+
   2swap entryname>suffix s+ ;
-  \ Convert a glossary entry name _ca1 len1_ (a Forth
-  \ word) to its temporary filename _ca2 len2_. The
-  \ filename consists of `max-word-length` 8-bit hex numbers
-  \ that represent the characters of the entry name, with
-  \ trailing '0' digits to its maximum length.
+  \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
+  \ its temporary filename _ca2 len2_. The filename consists of
+  \ `max-word-length` 8-bit hex numbers that represent the
+  \ characters of the entry name, with trailing '0' digits to
+  \ its maximum length.
 
 : entryname>filename ( ca1 len1 -- ca2 len2 )
   entryname>basefilename
@@ -268,7 +272,7 @@ rgx-compile 0= [if]
   \ link that starts at position _+n1_ and ends before position
   \ _+n2_.
 
-: 4dup  ( x1..x4 -- x1..x4 x1..x4 )
+: 4dup ( x1..x4 -- x1..x4 x1..x4 )
   2over 2over ;
 
 : entryname>common-id ( ca1 len1 -- ca2 len2 )
@@ -305,15 +309,15 @@ rgx-compile 0= [if]
 s" [backtick-here][begin-cross-reference-here]" 2constant `<<
 s" [end-cross-reference-here][backtick-here]" 2constant >>`
 
-: match>before  ( ca1 len1 +n2 +n1 -- ca1 len2 )
+: match>before ( ca1 len1 +n2 +n1 -- ca1 len2 )
   nip nip ;
 
-: match>after  ( ca1 len1 +n2 +n1 -- ca2 len2 )
+: match>after ( ca1 len1 +n2 +n1 -- ca2 len2 )
   drop /string ;
 
 : prepare-implicit-link ( ca len -- )
   0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
-  4dup >implicit-link-text  link-text 2!
+  4dup >implicit-link-text link-text 2!
   4dup match>before before-link 2!
        match>after after-link 2! ;
   \ Prepare the first implicit link found in string _ca1 len1_
@@ -333,13 +337,13 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
 : implicit-link ( ca1 len1 -- ca2 len2 )
   prepare-implicit-link build-implicit-link ;
   \ Convert the first implicit link (a word between backticks,
-  \ e.g.  `entryname`) contained in entry line _ca1 len1_ to
-  \ Asciidoctor markup (e.g.  <<ID, entryname>>), returning the
+  \ e.g. `entryname`) contained in entry line _ca1 len1_ to
+  \ Asciidoctor markup (e.g. <<ID, entryname>>), returning the
   \ modified string _ca2 len2_.
   \
   \ In order to prevent recursion in `implicit-links?`,
   \ backticks in the result string are replaced with a temporary
-  \ string.  They are restored later.
+  \ string. They are restored later.
   \
   \ In the result string, the space after the comma is
   \ important: It's added in order to prevent later mismatches
@@ -353,10 +357,10 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
   \ Replace the temporary markup in _ca1 len1_.
 
 : implicit-links? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
-  0 >r  begin   2dup implicit-link-rgx rgx-csearch -1 >
-                dup r> + >r
-        while   implicit-link
-        repeat  r> 0<> ;
+  0 >r begin  2dup implicit-link-rgx rgx-csearch -1 >
+              dup r> + >r
+       while  implicit-link
+       repeat r> 0<> ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
   \ markup and return the modified string _ca2 len2_ and a true
@@ -402,10 +406,10 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
   prepare-explicit-link build-explicit-link ;
 
 : explicit-links? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
-  0 >r  begin   2dup explicit-link-rgx rgx-csearch -1 >
-                dup r> + >r
-        while   explicit-link
-        repeat  r> 0<> ;
+  0 >r begin  2dup explicit-link-rgx rgx-csearch -1 >
+              dup r> + >r
+       while  explicit-link
+       repeat r> 0<> ;
   \ If the entry line _ca1 len1_ contains explicit and
   \ unfinished Asciidoctor links, finish them and
   \ return the modified string _ca2 len2_ and a true flag; else
@@ -449,7 +453,7 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
   \
   \ XXX TODO -- Double backticks should be ignored by the
   \ regular expression. But it seems it can not be done with the
-  \ current version of Forth Foundation Library.  This
+  \ current version of Forth Foundation Library. This
   \ alternative temporary method, preserving and restoring them
   \ with text substitutions, is rudimentary, but it works,
   \ provided no Forth word mentioned in the documentation has a
@@ -462,9 +466,14 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
 
 create line-buffer /line-buffer 2 + chars allot
 
-variable entry-line#    \ counter of non-empty lines (first line is 1)
-variable entry-header   \ flag: processing an entry header?
-variable header-status  \ 0=not found yet; 1=processing; 2=finished
+variable entry-line#
+  \ Counter of non-empty lines (first line is 1).
+
+variable entry-header
+  \ Flag: processing an entry header?
+
+variable header-status
+  \ 0=not found yet; 1=processing; 2=finished.
 
 : processing-header? ( -- f )
   header-status @ 1 = ;
@@ -494,7 +503,8 @@ variable header-status  \ 0=not found yet; 1=processing; 2=finished
 create (heading-markup) max-headings-level chars allot
 (heading-markup) max-headings-level '=' fill
 
-: heading-markup ( -- ca len ) (heading-markup) headings-level @ ;
+: heading-markup ( -- ca len )
+  (heading-markup) headings-level @ ;
 
 : .heading-markup ( -- ) heading-markup type space ;
 
@@ -507,7 +517,7 @@ create (heading-markup) max-headings-level chars allot
 : heading-attr-list ( ca len -- )
   cr ." [#" entryname>unique-id type ." ]" cr ;
   \ Create the Asciidoctor attribute list for entry name _ca1
-  \ len1_.  The attribute list contains only the corresponding
+  \ len1_. The attribute list contains only the corresponding
   \ id block attribute, which is unique for each entry.
 
 : heading-line ( ca len )
@@ -544,10 +554,10 @@ create (heading-markup) max-headings-level chars allot
        header-boundary ;
   \ Start an entry header, whose first line is _ca len_.
 
-: start-of-header?  ( -- f )
+: start-of-header? ( -- f )
   entry-line# @ 2 = ;
 
-: end-of-header?  ( len -- f )
+: end-of-header? ( len -- f )
   0= processing-header? and ;
 
 : update-entry-line# ( len -- )
@@ -559,7 +569,7 @@ create (heading-markup) max-headings-level chars allot
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  links type cr  ;
+  links type cr ;
   \ Process input line _ca len_, which is part of the contents
   \ of a glossary entry.
 
@@ -567,7 +577,7 @@ create (heading-markup) max-headings-level chars allot
   cr ." Source file: <" parsed-file 2@ type ." >." cr ;
 
 : end-entry ( -- )
-  add-source-file  entry-line# off ;
+  add-source-file entry-line# off ;
 
 : process-entry-line ( ca len -- )
   2dup end-of-entry? if   2drop end-entry
@@ -575,11 +585,12 @@ create (heading-markup) max-headings-level chars allot
   \ Process input line _ca len_, which is part of a glossary
   \ entry, maybe its end markup.
 
-: tidy  ( ca len -- ca' len' )
+: tidy ( ca len -- ca' len' )
   /name 2nip dup 0<> abs /string ;
   \ Remove the first name (a substring delimited by spaces) from
-  \ _ca len_ and the first space after it.  also the The removed
-  \ name is the line comment mark of the input source.
+  \ _ca len_ and the first space after it. The removed name is
+  \ supposed to be the line comment backslash of the input
+  \ source.
 
 : process-line ( ca len -- )
   tidy entry-line# @ if   process-entry-line
@@ -594,7 +605,7 @@ create (heading-markup) max-headings-level chars allot
   \ Init the parser variables.
 
 : end-parsing ( -- )
-  close-entry-file  set-standard-output ;
+  close-entry-file set-standard-output ;
   \ Set `emit` and `type` to standard output.
 
 : parse-file ( fid -- )
@@ -605,6 +616,7 @@ create (heading-markup) max-headings-level chars allot
   \ print it to standard output.
 
 : parse-input-file ( ca len -- )
+\  2dup cr ." parse-input-file <<" type ." >>" \ XXX INFORMER
   2dup parsed-file 2!
   r/o open-file throw dup parse-file close-file throw ;
   \ Extract the glossary information from file _ca len_ and
@@ -627,8 +639,8 @@ create (heading-markup) max-headings-level chars allot
 
 : cat ( -- ca len )
   s" cat " entry-files-pattern s+ ;
-  \ Return the shell `cat` command to concatenate and print all glossary
-  \ entry files.
+  \ Return the shell `cat` command to concatenate and print all
+  \ glossary entry files.
 
 : glossary ( -- )
   cat >file system ;
@@ -715,12 +727,14 @@ arg.verbose-option arguments arg-add-option
 variable input-files# \ counter
 
 : input-file ( ca len -- )
+\  2dup cr ." input-file <<" type ." >>" \ XXX INFORMER
   1 input-files# +!
   s" Processing input file " 2over s+ echo parse-input-file ;
 
-variable tmp  \ XXX TMP --
+variable tmp \ XXX TMP --
 
 : input-option ( ca len -- )
+\  2dup cr ." parse-input-file <<" type ." >>" \ XXX INFORMER
   s" Processing input files list " 2over s+ echo
   r/o open-file throw tmp !
   begin tmp @ read-line? while save-mem input-file
@@ -750,7 +764,7 @@ variable tmp  \ XXX TMP --
   endcase ;
 
 : option? ( -- n f )
-  arguments arg-parse  dup arg.done <> over arg.error <> and ;
+  arguments arg-parse dup arg.done <> over arg.error <> and ;
   \ Parse the next option. Is it right?
 
 \ ==============================================================
