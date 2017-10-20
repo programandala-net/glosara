@@ -1,11 +1,12 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-02-22
+:revdate: 2017-10-20
 :linkattrs:
 
 == Description
 
-Glosara is a glosser for Forth sources. Its goal is to extract the
+Glosara is a glosser for Forth sources, though it could be used with
+other programming languages as well.  Its goal is to extract the
 glossary and modules documentation out of the sources and build the
 documents in http://asciidoctor.org[Asciidoctor,role="external"]
 format, with cross references.

@@ -21,7 +21,3 @@ from.
 == 2017-07-14
 
 Fix `input-option`.
-
-== 2017-10-20
-
-Make backslash markup configurable. Update README accordingly.

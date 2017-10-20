@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.21.0+201710201653" ;
+: version s" 0.22.0+201710201703" ;
 
 \ ==============================================================
 \ Description
@@ -137,7 +137,6 @@ variable output-file \ output file identifier
 
 : create-output-file ( -- fid )
   output-filename 2@
-  \ 2dup cr ." create-output-file <" type ." >" \ XXX INFORMER
   w/o create-file throw dup output-file ! ;
   \ XXX TODO -- Not used.
 
@@ -637,7 +636,6 @@ create (heading-markup) max-headings-level chars allot
   \ print it to standard output.
 
 : parse-input-file ( ca len -- )
-\  2dup cr ." parse-input-file <<" type ." >>" \ XXX INFORMER
   2dup parsed-file 2!
   r/o open-file throw dup parse-file close-file throw ;
   \ Extract the glossary information from file _ca len_ and
@@ -647,12 +645,7 @@ create (heading-markup) max-headings-level chars allot
 \ Glossary
 
 : (>file) ( ca1 len1 -- ca2 len2 )
-  \ 2dup cr ." (>file) <" type ." >" \ XXX INFORMER
-  s"  > " s+ output-filename 2@ 
-  \ 2dup cr ." output-filename 2@ <" type ." >" \ XXX INFORMER
-  s+
-  \ 2dup cr ." (>file) <" type ." >" \ XXX INFORMER
-  ;
+  s"  > " s+ output-filename 2@ s+ ;
   \ Complete shell command _ca1 len1_ with the redirection to
   \ the output file specified in the command line, resulting
   \ _ca2 len2_.
@@ -742,14 +735,8 @@ false                     \ switch type
 arg.markers-option arguments arg-add-option
 
 : markers-option ( ca len -- )
-  \ XXX TODO -- Finish.
-  \ 2dup cr ." Markers:  <" type ." >" key drop \ XXX INFORMER
-  2dup first-name
-  \ 2dup cr ." Starting: <" type ." >" key drop \ XXX INFORMER
-  dup ?marker starting-marker place
-  /name 1 /string trim
-  \ 2dup cr ." Ending:   <" type ." >" key drop \ XXX INFORMER
-  dup ?marker ending-marker place ;
+  2dup first-name      dup ?marker starting-marker place
+  /name 1 /string trim dup ?marker ending-marker   place ;
   \ Set the starting and ending markers, specified by string _ca
   \ len_. The markers are separated by at least one space.
 
@@ -775,14 +762,12 @@ variable helped \ flag: help already shown?
 variable input-files# \ counter
 
 : input-file ( ca len -- )
-\  2dup cr ." input-file <<" type ." >>" \ XXX INFORMER
   1 input-files# +!
   s" Processing input file " 2over s+ echo parse-input-file ;
 
 variable tmp \ XXX TMP --
 
 : input-option ( ca len -- )
-\  2dup cr ." parse-input-file <<" type ." >>" \ XXX INFORMER
   s" Processing input files list " 2over s+ echo
   r/o open-file throw tmp !
   begin tmp @ read-line? while save-mem input-file
@@ -793,7 +778,6 @@ variable tmp \ XXX TMP --
   \ during the parsing.
 
 : output-option ( ca len -- )
-  \ 2dup cr ." output-option <" type ." >" \ XXX INFORMER
   output-filename @ abort" More than one output file specified"
   save-mem output-filename 2! ;
 
