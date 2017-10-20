@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.20.0+201710201624" ;
+: version s" 0.20.1+201710201637" ;
 
 \ ==============================================================
 \ Description
@@ -39,19 +39,14 @@ require ffl/rgx.fs \ regular expressions
 \ From the Galope library
 \ (http://programandala.net/en.program.galope.html)
 
-\ require galope/unslurp-file.fs
-\ require galope/minus-extension.fs
-require galope/string-slash.fs
-\ require galope/trim.fs
-require galope/slash-name.fs
-require galope/first-name.fs
-require galope/replaced.fs
-require galope/minus-path.fs \ `-path`
+require galope/first-name.fs      \ `first-name`
 require galope/minus-extension.fs \ `-extension`
-require galope/minus-leading.fs \ `-leading`
-require galope/s-plus.fs \ `s+`
-
-\ require galope/tilde-tilde.fs \ XXX TMP -- for debugging
+require galope/minus-leading.fs   \ `-leading`
+require galope/minus-path.fs      \ `-path`
+require galope/replaced.fs        \ `replaced`
+require galope/s-plus.fs          \ `s+`
+require galope/slash-name.fs      \ `/name`
+require galope/trim.fs            \ `trim`
 
 \ ==============================================================
 \ Dependencies
@@ -752,7 +747,7 @@ arg.markers-option arguments arg-add-option
   2dup first-name
   \ 2dup cr ." Starting: <" type ." >" key drop \ XXX INFORMER
   dup ?marker starting-marker place
-  /name 1 /string
+  /name 1 /string trim
   \ 2dup cr ." Ending:   <" type ." >" key drop \ XXX INFORMER
   dup ?marker ending-marker place ;
   \ Set the starting and ending markers, specified by string _ca
