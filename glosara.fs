@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.19.0+201707141927" ;
+: version s" 0.20.0+201710201624" ;
 
 \ ==============================================================
 \ Description
@@ -28,6 +28,8 @@
 
 forth-wordlist set-current
 
+warnings off
+
 \ From Forth Foundation Library
 \ (http://irdvo.github.io/ffl/)
 
@@ -46,6 +48,8 @@ require galope/first-name.fs
 require galope/replaced.fs
 require galope/minus-path.fs \ `-path`
 require galope/minus-extension.fs \ `-extension`
+require galope/minus-leading.fs \ `-leading`
+require galope/s-plus.fs \ `s+`
 
 \ require galope/tilde-tilde.fs \ XXX TMP -- for debugging
 
@@ -137,10 +141,14 @@ variable output-file \ output file identifier
   stdout to outfile-id ;
 
 : create-output-file ( -- fid )
-  output-filename 2@ w/o create-file throw dup output-file ! ;
+  output-filename 2@
+  \ 2dup cr ." create-output-file <" type ." >" \ XXX INFORMER
+  w/o create-file throw dup output-file ! ;
+  \ XXX TODO -- Not used.
 
 : close-output-file ( -- )
   output-file @ close-file throw ;
+  \ XXX TODO -- Not used.
 
                        31 constant max-word-length
 max-word-length 2 * chars constant /basefilename
@@ -478,11 +486,29 @@ variable header-status
 : processing-header? ( -- f )
   header-status @ 1 = ;
 
+16 constant /marker
+  \ Maximum length of the starting and ending markers, in chars.
+
+: ?marker ( len -- )
+  /marker > abort" Marker too long" ;
+
+create starting-marker /marker chars allot
+  \ Starting marker storage.
+
+create ending-marker /marker chars allot
+  \ Ending marker storage.
+
+s" doc{" starting-marker place
+  \ Default starting marker.
+
+s" }doc" ending-marker place
+  \ Default ending marker.
+
 : start-of-entry? ( ca len -- f )
-  s" doc{" str= ;
+  starting-marker count str= ;
 
 : end-of-entry? ( ca len -- f )
-  s" }doc" str= ;
+  ending-marker count str= ;
 
 : start-entry ( -- )
   1 entry-line# ! entry-header off header-status off ;
@@ -626,7 +652,12 @@ create (heading-markup) max-headings-level chars allot
 \ Glossary
 
 : (>file) ( ca1 len1 -- ca2 len2 )
-  s"  > " s+ output-filename 2@ s+ ;
+  \ 2dup cr ." (>file) <" type ." >" \ XXX INFORMER
+  s"  > " s+ output-filename 2@ 
+  \ 2dup cr ." output-filename 2@ <" type ." >" \ XXX INFORMER
+  s+
+  \ 2dup cr ." (>file) <" type ." >" \ XXX INFORMER
+  ;
   \ Complete shell command _ca1 len1_ with the redirection to
   \ the output file specified in the command line, resulting
   \ _ca2 len2_.
@@ -707,6 +738,26 @@ s" activate verbose mode" \ description
 true                      \ switch type
 arg.verbose-option arguments arg-add-option
 
+\ Add the -m/--markers option:
+9 constant arg.markers-option
+'m'                       \ short option
+s" markers"               \ long option
+s" set markers; e.g. 'glossary{ }glossary'" \ description
+false                     \ switch type
+arg.markers-option arguments arg-add-option
+
+: markers-option ( ca len -- )
+  \ XXX TODO -- Finish.
+  \ 2dup cr ." Markers:  <" type ." >" key drop \ XXX INFORMER
+  2dup first-name
+  \ 2dup cr ." Starting: <" type ." >" key drop \ XXX INFORMER
+  dup ?marker starting-marker place
+  /name 1 /string
+  \ 2dup cr ." Ending:   <" type ." >" key drop \ XXX INFORMER
+  dup ?marker ending-marker place ;
+  \ Set the starting and ending markers, specified by string _ca
+  \ len_. The markers are separated by at least one space.
+
 : help ( -- )
   arguments arg-print-help ;
   \ Show the help.
@@ -745,8 +796,9 @@ variable tmp \ XXX TMP --
   \ during the parsing.
 
 : output-option ( ca len -- )
+  \ 2dup cr ." output-option <" type ." >" \ XXX INFORMER
   output-filename @ abort" More than one output file specified"
-  output-filename 2! ;
+  save-mem output-filename 2! ;
 
 : version-option ( -- )
   arguments arg-print-version ;
@@ -760,6 +812,7 @@ variable tmp \ XXX TMP --
     arg.unique-option  of unique-option  endof
     arg.verbose-option of verbose-option endof
     arg.level-option   of level-option   endof
+    arg.markers-option of markers-option endof
     arg.non-option     of input-file     endof
   endcase ;
 

@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-07-14
+:revdate: 2017-07-15
 
 .2017-02-15:
 
@@ -21,3 +21,7 @@ from.
 .2017-07-14:
 
 Fix `input-option`.
+
+.2017-07-15:
+
+Fix: `--help` shows the help twice.
