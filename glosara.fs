@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.20.1+201710201637" ;
+: version s" 0.21.0+201710201653" ;
 
 \ ==============================================================
 \ Description
@@ -753,8 +753,10 @@ arg.markers-option arguments arg-add-option
   \ Set the starting and ending markers, specified by string _ca
   \ len_. The markers are separated by at least one space.
 
+variable helped \ flag: help already shown?
+
 : help ( -- )
-  arguments arg-print-help ;
+  arguments arg-print-help helped on ;
   \ Show the help.
 
 : verbose-option ( -- )
@@ -819,6 +821,7 @@ variable tmp \ XXX TMP --
 \ Boot
 
 : init ( -- )
+  helped off
   delete-entry-files argc off
   input-files# off verbose off output-filename off unique off
   2 headings-level ! ;
@@ -826,11 +829,12 @@ variable tmp \ XXX TMP --
 : options ( -- )
   begin option? while option repeat drop ;
 
-: files ( -- n )
-  init options input-files# @ ;
+: fine? ( -- f )
+  input-files# @ 0> helped @ or ;
+  \ Fine options?
 
 : run ( -- )
-  files if glossary else help then ;
+  init options fine? if glossary else help then ;
 
 run bye
 
