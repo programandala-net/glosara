@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.23.0+201710210215" ;
+: version s" 0.23.0+201710210217" ;
 
 \ ==============================================================
 \ Description
@@ -198,17 +198,9 @@ create null-filename /basefilename allot
   \ len2_.
 
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
-  s" entryname>basefilename IN " checkstr \ XXX INFORMER
-  2dup string>hex dup >r null-filename /basefilename r>
-  s" entryname>basefilename 0 " checkstack \ XXX INFORMER
-  - dup 0< abort" Entry name too long"
-  s" entryname>basefilename 1 " checkstr \ XXX INFORMER
-  s+ \ XXX FIXME --
-  2swap entryname>suffix
-  s" entryname>basefilename 2 " checkstr \ XXX INFORMER
-  s+
-  s" entryname>basefilename OUT " checkstr \ XXX INFORMER
-  ;
+  2dup string>hex dup >r null-filename /basefilename r> -
+  dup 0< abort" Entry name too long" s+
+  2swap entryname>suffix s+ ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
   \ its temporary filename _ca2 len2_. The filename consists of
   \ `max-word-length` 8-bit hex numbers that represent the
@@ -216,14 +208,9 @@ create null-filename /basefilename allot
   \ its maximum length.
 
 : entryname>filename ( ca1 len1 -- ca2 len2 )
-  s" entryname>filename IN " checkstr \ XXX INFORMER
   entryname>basefilename
-  entry-filename-prefix 2swap
-  s" entryname>filename 0 " checkstr \ XXX INFORMER
-  s+
-  temp-directory 2swap s+
-  s" entryname>filename OUT " checkstr \ XXX INFORMER
-  ;
+  entry-filename-prefix 2swap s+
+  temp-directory 2swap s+ ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
   \ its temporary filename _ca2 len2_, including the path.
 
@@ -241,11 +228,9 @@ variable entry-file
   file-status nip 0= ;
 
 : (create-entry-file) ( ca len -- fid )
-  s" (create-entry-file) " checkstr \ XXX INFORMER
   close-entry-file w/o create-file throw dup entry-file ! ;
 
 : create-entry-file ( ca len -- fid )
-  s" create-entry-file " checkstr \ XXX INFORMER
   entryname>filename (create-entry-file) ;
   \ Create a file for glossary entry name _ca len_.
   \ If a previous entry file is open, close it.
@@ -601,7 +586,6 @@ create (heading-markup) max-headings-level chars allot
   header-boundary ;
 
 : start-header ( ca len -- )
-  s" start-header " checkstr \ XXX INFORMER
   1 entry-line# +!
   2dup first-name 2dup create-entry-file to outfile-id
                        heading cr
@@ -647,7 +631,6 @@ create (heading-markup) max-headings-level chars allot
   \ source.
 
 : process-line ( ca len -- )
-  s" process-line " checkstr \ XXX INFORMER
   tidy entry-line# @ if   process-entry-line
                      else process-code-line then ;
   \ Process the input line _ca len_.
@@ -671,7 +654,6 @@ create (heading-markup) max-headings-level chars allot
   \ print it to standard output.
 
 : parse-input-file ( ca len -- )
-  s" parse-input-file " checkstr \ XXX INFORMER
   2dup parsed-file 2!
   r/o open-file throw dup parse-file close-file throw ;
   \ Extract the glossary information from file _ca len_ and
@@ -804,7 +786,6 @@ variable input-files# \ counter
 variable tmp \ XXX TMP --
 
 : input-option ( ca len -- )
-  \ s" input-option " checkstr \ XXX INFORMER
   s" Processing input files list " 2over s+ echo
   r/o open-file throw tmp !
   begin  tmp @ read-line?
