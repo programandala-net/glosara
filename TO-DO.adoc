@@ -21,3 +21,7 @@ from.
 == 2017-07-14
 
 Fix `input-option`.
+
+== 2017-10-21
+
+Make `max-word-length` configurable.
