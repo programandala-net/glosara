@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.23.0+201710210217" ;
+: version s" 0.23.0+201711041824" ;
 
 \ ==============================================================
 \ Description
@@ -40,9 +40,7 @@ require ffl/rgx.fs \ regular expressions
 \ (http://programandala.net/en.program.galope.html)
 
 require galope/first-name.fs      \ `first-name`
-require galope/minus-extension.fs \ `-extension`
 require galope/minus-leading.fs   \ `-leading`
-require galope/minus-path.fs      \ `-path`
 require galope/replaced.fs        \ `replaced`
 require galope/s-plus.fs          \ `s+`
 require galope/slash-name.fs      \ `/name`
