@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.23.0+201711041824" ;
+: version s" 0.23.1-pre.0+201804132124" ;
 
 \ ==============================================================
 \ Description
@@ -137,9 +137,9 @@ wordlist constant counters-wordlist
 \ ==============================================================
 \ Files
 
-s" /tmp/" 2constant temp-directory
+: temp-directory ( -- ca len ) s" /tmp/" ;
 
-s" glosara.entry." 2constant entry-filename-prefix
+: entry-filename-prefix ( -- ca len ) s" glosara.entry." ;
 
 2variable output-filename
 
@@ -324,8 +324,14 @@ rgx-compile 0= [if]
 2variable link-text
 2variable after-link
 
-s" [backtick-here][begin-cross-reference-here]" 2constant `<<
-s" [end-cross-reference-here][backtick-here]" 2constant >>`
+: .linkparts ( -- )
+  cr ." before-link " before-link 2@ type
+  cr ." link-text   " link-text   2@ type
+  cr ." after-link  " after-link  2@ type cr ;
+  \ XXX INFORMER
+
+: `<< ( -- ca len ) s" [backtick-here][begin-cross-reference-here]" ;
+: >>` ( -- ca len ) s" [end-cross-reference-here][backtick-here]" ;
 
 : match>before ( ca1 len1 +n2 +n1 -- ca1 len2 )
   nip nip ;
@@ -337,23 +343,60 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
   0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
   4dup >implicit-link-text link-text 2!
   4dup match>before before-link 2!
-       match>after after-link 2! ;
-  \ Prepare the first implicit link found in string _ca1 len1_
+       match>after after-link 2!
+  ." End of prepare-implicit-link:" .linkparts ; \ XXX INFORMER
+  \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
   \
   \ XXX TODO -- Use the stack instead of variables.
 
+: escaped ( ca1 len1 -- ca2 len2 )
+  s" &#35;"       s" #"   replaced
+  cr ." after-link 0 in escaped:" after-link 2@ .s type \ XXX INFORMER
+  cr 2dup type \ XXX INFORMER
+  s" &#34;"       s\" \q" replaced
+  cr ." after-link 1 in escaped:" after-link 2@ .s type \ XXX INFORMER
+  cr 2dup type \ XXX INFORMER
+  s" &#42;"       s" *"   replaced
+  cr ." after-link 2 in escaped:" after-link 2@ type \ XXX INFORMER
+  s" &#60;"       s" <"   replaced
+  cr ." after-link 3 in escaped:" after-link 2@ type \ XXX INFORMER
+  s" &#61;"       s" ="   replaced
+  cr ." after-link 4 in escaped:" after-link 2@ type \ XXX INFORMER
+  s" &#62;"       s" >"   replaced
+  cr ." after-link 5 in escaped:" after-link 2@ type \ XXX INFORMER
+  s" {backslash}" s" \"   replaced ;
+  \ Escape special characters in string _ca1 len1_, returning
+  \ the result string _ca2 len2_. Escaping certain characters is
+  \ needed in order to prevent troubles during the conversion of
+  \ Asciidoctor into HTML and PDF.
+
 : build-implicit-link ( -- ca len )
+  cr ." Start of build-implicit-link:" .linkparts \ XXX INFORMER
   before-link 2@ `<< s+ link-text 2@ entryname>common-id s+
-                     s" , pass:c[" s+ link-text 2@ s+ s" ]" s+
-                 >>` s+ after-link 2@ s+ ;
+  cr ." after-link 0 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
+                     s" , " s+
+  cr ." after-link 1 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
+                     link-text 2@
+  cr ." after-link 2 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
+                     escaped
+                     \ XXX FIXME -- `after-link` modified here
+  cr ." after-link 3 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
+                     s+
+  cr ." after-link 4 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
+                 >>` s+ after-link 2@
+  cr ." after-link 5 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
+                 s+ ;
   \ Build the implicit link from its pieces.
   \
   \ XXX TODO -- Use the stack instead of variables.
   \ XXX TODO -- Factor and combine with `build-implicit-link`.
 
 : implicit-link ( ca1 len1 -- ca2 len2 )
-  prepare-implicit-link build-implicit-link ;
+  cr ." XXX implicit-link " 2dup type cr \ XXX INFORMER
+  prepare-implicit-link build-implicit-link
+  cr ." XXX RESULT implicit-link " 2dup type cr \ XXX INFORMER
+  ;
   \ Convert the first implicit link (a word between backticks,
   \ e.g. `entryname`) contained in entry line _ca1 len1_ to
   \ Asciidoctor markup (e.g. <<ID, entryname>>), returning the
@@ -378,13 +421,16 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
   0 >r begin  2dup implicit-link-rgx rgx-csearch -1 >
               dup r> + >r
        while  implicit-link
-       repeat r> 0<> ;
+       repeat
+       cr ." XXX RESULT implicit-links? " 2dup type cr \ XXX INFORMER
+       r> 0<> ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
   \ markup and return the modified string _ca2 len2_ and a true
   \ flag; else return the original string and a false flag.
 
 : implicit-links ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  cr ." XXX implicit-links " 2dup type cr \ XXX INFORMER
   implicit-links? drop ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
@@ -413,7 +459,9 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
 
 : build-explicit-link ( -- ca len )
   before-link 2@ `<< s+ link-text 2@ xreflabel 2@ >unique-id s+
-                     s" , pass:c[" s+ link-text 2@ s+ s" ]" s+
+                     \ s" , pass:c[" s+ link-text 2@ s+ s" ]" s+
+                     \ XXX OLD
+                     s" , " s+ link-text 2@ escaped s+
                  >>` s+ after-link 2@ s+ ;
   \ Build the explicit link from its pieces.
   \
@@ -455,6 +503,7 @@ s" [end-cross-reference-here][backtick-here]" 2constant >>`
   \ `preserve-double-backticks`.
 
 : links ( ca1 len1 -- ca1 len1 | ca2 len2 )
+  cr ." XXX links " 2dup type cr \ XXX INFORMER
   preserve-double-backticks explicit-links
                             implicit-links finish-links
   restore-double-backticks ;
@@ -557,7 +606,9 @@ create (heading-markup) max-headings-level chars allot
   \ id block attribute, which is unique for each entry.
 
 : heading-line ( ca len )
-  .heading-markup 2dup common-anchor ." pass:c[" type ." ]" cr ;
+  \ .heading-markup 2dup common-anchor ." pass:c[" type ." ]" cr ;
+                     \ XXX OLD
+  .heading-markup 2dup common-anchor escaped type cr ;
   \ Create a glossary heading line for entry name _ca len_.
   \ The Asciidoctor inline macro `pass:[]` is used to force
   \ replacement of special characters of Forth names (e.g. '<')
@@ -625,10 +676,11 @@ create (heading-markup) max-headings-level chars allot
   /name 2nip dup 0<> abs /string ;
   \ Remove the first name (a substring delimited by spaces) from
   \ _ca len_ and the first space after it. The removed name is
-  \ supposed to be the line comment backslash of the input
-  \ source.
+  \ supposed to be the Forth line comment backslash, or the
+  \ corresponding markup of other languages.
 
 : process-line ( ca len -- )
+  cr ." XXX process-line " 2dup type cr \ XXX INFORMER
   tidy entry-line# @ if   process-entry-line
                      else process-code-line then ;
   \ Process the input line _ca len_.
@@ -732,7 +784,6 @@ s" unique"                    \ long option
 s" reject duplicated entries" \ description
 true                          \ switch type
 arg.unique-option arguments arg-add-option
-
 
 \ Add the -v/--verbose option:
 8 constant arg.verbose-option

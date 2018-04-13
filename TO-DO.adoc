@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-10-20
+:revdate: 2018-04-13
 
 == 2017-02-15
 
@@ -25,3 +25,39 @@ Fix `input-option`.
 == 2017-10-21
 
 Make `max-word-length` configurable.
+
+== 2017-11-19
+
+Add an option to use a prefix for link anchors. This way different
+glossaries with homonimous could be built apart and then combined into
+one single manual.
+
+== 2018-04-13
+
+Fix eventual corruption of strings during substitutions. See Galope's
+`replaced`, based of FFL.
+
+The problem is substitutions make some strings longer, corrupting other
+strings.  The following debugging output shows string _14357112 3_ converted to
+_14357112 11_ after `replaced`, overwritting string _1435311 1_, which is
+pointed by the double-cell variable `after-link`.
+
+....
+Start of build-implicit-link:
+before-link See:
+link-text   "y"
+after-link  .
+
+after-link 0 in build-implicit-link:.
+after-link 1 in build-implicit-link:.
+after-link 2 in build-implicit-link:.
+after-link 0 in escaped:<8> 14351784 14351784 14364016 61 14357112 3 14357122 1 .
+"y"
+after-link 1 in escaped:<8> 14351784 14351784 14364016 61 14357112 11 14357122 1 ;
+&#34;y&#34;
+after-link 2 in escaped:;
+after-link 3 in escaped:;
+after-link 4 in escaped:;
+after-link 5 in escaped:;
+after-link 3 in build-implicit-link:;
+....
