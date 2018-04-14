@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.23.1+201804140217" ;
+: version s" 0.24.0+201804141312" ;
 
 \ ==============================================================
 \ Description
@@ -376,6 +376,7 @@ rgx-compile 0= [if]
   s" &#35;"       s" #"   replaced
   s" &#34;"       s\" \q" replaced
   s" &#42;"       s" *"   replaced
+  s" &#45;"       s" -"   replaced
   s" &#60;"       s" <"   replaced
   s" &#61;"       s" ="   replaced
   s" &#62;"       s" >"   replaced
@@ -560,16 +561,19 @@ s" }doc" ending-marker place
 
 : start-of-entry? ( ca len -- f )
   starting-marker count str= ;
+  \ Is line _ca len_ the start of a glossary entry?
 
 : end-of-entry? ( ca len -- f )
   ending-marker count str= ;
+  \ Is line _ca len_ the end of a glossary entry?
 
 : start-entry ( -- )
   1 entry-line# ! entry-header off header-status off ;
+  \ Start a glossary entry.
 
-: process-code-line ( ca len -- )
+: ?start-entry ( ca len -- )
   start-of-entry? if start-entry then ;
-  \ Process input file line _ca len_.
+  \ If line _ca len_ is the start of a glossary entry, start it.
 
 : entryname>common-anchor ( ca1 len1 -- ca2 len2 )
   s" [[" 2swap entryname>common-id s+ s" ]]" s+ ;
@@ -652,7 +656,7 @@ create (heading-markup) max-headings-level chars allot
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
   links type cr ;
-  \ Process input line _ca len_, which is part of the contents
+  \ Process line _ca len_, which is part of the contents
   \ of a glossary entry.
 
 : add-source-file ( -- )
@@ -664,7 +668,7 @@ create (heading-markup) max-headings-level chars allot
 : process-entry-line ( ca len -- )
   2dup end-of-entry? if   2drop end-entry
                      else (process-entry-line) then ;
-  \ Process input line _ca len_, which is part of a glossary
+  \ Process line _ca len_, which is part of a glossary
   \ entry, maybe its end markup.
 
 : tidy ( ca len -- ca' len' )
@@ -674,10 +678,12 @@ create (heading-markup) max-headings-level chars allot
   \ supposed to be the Forth line comment backslash, or the
   \ corresponding markup of other languages.
 
+: entry? ( -- f ) entry-line# @ 0<> ;
+  \ Is there an entry being processed?
+
 : process-line ( ca len -- )
-  tidy entry-line# @ if   process-entry-line
-                     else process-code-line then ;
-  \ Process the input line _ca len_.
+  tidy entry? if process-entry-line else ?start-entry then ;
+  \ Process line _ca len_.
 
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
