@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.23.1-pre.1+201804140123" ;
+: version s" 0.23.1+201804140217" ;
 
 \ ==============================================================
 \ Description
@@ -290,11 +290,12 @@ rgx-compile 0= [if]
   \ corresponding substring.
   \ XXX TODO -- Remove.
 
-: >implicit-link-text ( ca1 len1 +n2 +n1 -- ca2 len2 )
+: match>implicit-link-text ( ca1 len1 +n2 +n1 -- ca2 len2 )
   2dup match>len 2 - >r nip nip + 1+ r> ;
   \ Extract from string _ca1 len1_ the link text _ca2 len2_ of
-  \ the implicit link that starts at position _+n1_ and ends
-  \ before position _+n2_.
+  \ the implicit link matched by _+n2 +n1_, i.e. the link text
+  \ that starts at position _+n1_ and ends before position
+  \ _+n2_.
 
 : 4dup ( x1..x4 -- x1..x4 x1..x4 )
   2over 2over ;
@@ -335,123 +336,66 @@ rgx-compile 0= [if]
   cr ." link-text   " link-text   2@ type
   cr ." after-link  " after-link  2@ type cr ;
   \ XXX INFORMER
+  \ XXX TMP -- For debugging.
 
 : `<< ( -- ca len ) s" [backtick-here][begin-cross-reference-here]" ;
 
 : >>` ( -- ca len ) s" [end-cross-reference-here][backtick-here]" ;
 
 : match>before ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  nip nip ;
-  \ nip nip >stringer ; \ XXX TODO --
+  nip nip >stringer ;
   \ Return string _ca2 len2_ that is the left part of string
   \ _ca1 len1_ before a regular expression match result _+n2
   \ +n1_, being _+n1_ the start of the match and _+n2_ the end
-  \ of the match.
+  \ of the match. _ca2 len2_ is in the `stringer`, in order to
+  \ protect it from later modifications of the main string _ca1
+  \ len1_ done by `escaped`, which may move it in the heap.
 
 : match>after ( ca1 len1 +n2 +n1 -- ca2 len2 )
   drop /string >stringer ;
   \ Return string _ca2 len2_ that is the right part of string
   \ _ca1 len1_ after a regular expression match result _+n2
   \ +n1_, being _+n1_ the start of the match and _+n2_ the end
-  \ of the match.
+  \ of the match. _ca2 len2_ is in the `stringer`, in order to
+  \ protect it from later modifications of the main string _ca1
+  \ len1_ done by `escaped`, which may make it longer,
+  \ overwritting the right part after the match, or move the
+  \ whole string in the heap.
 
 : prepare-implicit-link ( ca len -- )
   0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
-  4dup >implicit-link-text link-text 2!
-  4dup match>before before-link 2!
-       match>after after-link 2!
-  \ ." End of prepare-implicit-link:" .linkparts \ XXX INFORMER
-  ;
+  4dup match>implicit-link-text link-text   2!
+  4dup match>before             before-link 2!
+       match>after              after-link  2! ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
   \
   \ XXX TODO -- Use the stack instead of variables.
 
-: >replaced ( ca1 len1 ca2 len2 ca3 len3 -- ca1' len1' )
-
-  replaced
-
-  \ replaced >stringer
-  \ XXX FIXME -- No difference, same problems.
-
-  \ 2rot >stringer 2rot >stringer 2rot >stringer replaced
-  \ XXX FIXME -- No difference, same problems.
-
-  \ cr ." end of >replaced " .s
-
-  ;
-
 : escaped ( ca1 len1 -- ca2 len2 )
-  s" &#35;"       s" #"   >replaced
-  \ cr ." after-link 0 in escaped:" after-link 2@ .s type \ XXX INFORMER
-  \ cr 2dup type \ XXX INFORMER
-
-  s" &#34;"       s\" \q" >replaced
-    \ XXX FIXME -- ';' overwrites the first character of the
-    \ string pointed by `after-link`.
-
-  \ s" &#34X"       s\" \q" >replaced
-    \ XXX FIXME -- 'X' overwrites the first character of the
-    \ string pointed by `after-link`.
-
-  \ s" CUATRO"       s\" \q" >replaced \ XXX TMP -- Alternative.
-    \ XXX FIXME -- "T" overwrites the first character of the
-    \ string pointed by `after-link`.
-
-  \ s" CUAZRO"       s\" \q" >replaced \ XXX TMP -- Alternative.
-    \ XXX FIXME -- "Z" overwrites the first character of the
-    \ string pointed by `after-link`.
-
-  \ s" &#34;"       '"' pad c! pad 1 >replaced \ XXX TMP -- Alternative.
-    \ XXX FIXME -- ";" overwrites the first character of the
-    \ string pointed by `after-link`.
-
-  \ ss" &#34;"       '"' pad c! pad 1 >replaced \ XXX TMP -- Alternative.
-    \ XXX FIXME -- ";" overwrites the first character of the
-    \ string pointed by `after-link`.
-    \ by `after-link`.
-
-  \ cr ." after-link 1 in escaped:" after-link 2@ .s type \ XXX INFORMER
-  \ cr 2dup type \ XXX INFORMER
-  s" &#42;"       s" *"   >replaced
-  \ cr ." after-link 2 in escaped:" after-link 2@ .s type \ XXX INFORMER
-  s" &#60;"       s" <"   >replaced
-  \ cr ." after-link 3 in escaped:" after-link 2@ .s type \ XXX INFORMER
-  s" &#61;"       s" ="   >replaced
-  \ cr ." after-link 4 in escaped:" after-link 2@ .s type \ XXX INFORMER
-  s" &#62;"       s" >"   >replaced
-  \ cr ." after-link 5 in escaped:" after-link 2@ .s type \ XXX INFORMER
-  s" {backslash}" s" \"   >replaced ;
+  s" &#35;"       s" #"   replaced
+  s" &#34;"       s\" \q" replaced
+  s" &#42;"       s" *"   replaced
+  s" &#60;"       s" <"   replaced
+  s" &#61;"       s" ="   replaced
+  s" &#62;"       s" >"   replaced
+  s" {backslash}" s" \"   replaced ;
   \ Escape special characters in string _ca1 len1_, returning
   \ the result string _ca2 len2_. Escaping certain characters is
   \ needed in order to prevent troubles during the conversion of
   \ Asciidoctor into HTML and PDF.
 
 : build-implicit-link ( -- ca len )
-  \ cr ." Start of build-implicit-link:" .linkparts \ XXX INFORMER
   before-link 2@ `<< s+ link-text 2@ entryname>common-id s+
-  \ cr ." after-link 0 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
-                     s" , " s+
-  \ cr ." after-link 1 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
-                     link-text 2@
-  \ cr ." after-link 2 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
-                     escaped \ XXX FIXME -- `after-link` was modified here
-  \ cr ." after-link 3 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
-                     s+
-  \ cr ." after-link 4 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
-                 >>` s+ after-link 2@
-  \ cr ." after-link 5 in build-implicit-link:" after-link 2@ type \ XXX INFORMER
-                 s+ ;
+                     s" , " s+ link-text 2@ escaped s+
+                 >>` s+ after-link 2@ s+ ;
   \ Build the implicit link from its pieces.
   \
   \ XXX TODO -- Use the stack instead of variables.
   \ XXX TODO -- Factor and combine with `build-implicit-link`.
 
 : implicit-link ( ca1 len1 -- ca2 len2 )
-  \ cr ." XXX implicit-link " 2dup type cr \ XXX INFORMER
-  prepare-implicit-link build-implicit-link
-  \ cr ." XXX RESULT implicit-link " 2dup type cr \ XXX INFORMER
-  ;
+  prepare-implicit-link build-implicit-link ;
   \ Convert the first implicit link (a word between backticks,
   \ e.g. `entryname`) contained in entry line _ca1 len1_ to
   \ Asciidoctor markup (e.g. <<ID, entryname>>), returning the
@@ -476,16 +420,13 @@ rgx-compile 0= [if]
   0 >r begin  2dup implicit-link-rgx rgx-csearch -1 >
               dup r> + >r
        while  implicit-link
-       repeat
-       \ cr ." XXX RESULT implicit-links? " 2dup type cr \ XXX INFORMER
-       r> 0<> ;
+       repeat r> 0<> ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
   \ markup and return the modified string _ca2 len2_ and a true
   \ flag; else return the original string and a false flag.
 
 : implicit-links ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  \ cr ." XXX implicit-links " 2dup type cr \ XXX INFORMER
   implicit-links? drop ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
@@ -558,7 +499,6 @@ rgx-compile 0= [if]
   \ `preserve-double-backticks`.
 
 : links ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  \ cr ." XXX links " 2dup type cr \ XXX INFORMER
   preserve-double-backticks explicit-links
                             implicit-links finish-links
   restore-double-backticks ;
@@ -735,7 +675,6 @@ create (heading-markup) max-headings-level chars allot
   \ corresponding markup of other languages.
 
 : process-line ( ca len -- )
-  \ cr ." XXX process-line " 2dup type cr \ XXX INFORMER
   tidy entry-line# @ if   process-entry-line
                      else process-code-line then ;
   \ Process the input line _ca len_.
