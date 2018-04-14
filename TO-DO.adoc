@@ -32,3 +32,8 @@ Add an option to use a prefix for link anchors. This way different
 glossaries with homonimous could be built apart and then combined into
 one single manual.
 
+== 2018-04-14
+
+Combine `implicit-links?` and `implicit-links`. No need for the flag.
+
+Escape the constrained code.
