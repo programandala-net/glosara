@@ -17,11 +17,13 @@
 \ ==============================================================
 \ Author and license
 
-\ Copyright (C) 2015, 2016, 2017 Marcos Cruz (programandala.net)
+\ Copyright (C) 2015, 2016, 2017, 2018 Marcos Cruz
+\ (programandala.net)
 
 \ You may do whatever you want with this work, so long as you
-\ retain the copyright notices and this license in all
-\ redistributed copies and derived works. There is no warranty.
+\ retain all copyright, authorship and credit notices and this
+\ license in all redistributed copies and derived works. There
+\ is no warranty.
 
 \ ==============================================================
 \ Requirements
