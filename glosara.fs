@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.25.0-dev.0+201804151244" ;
+: version s" 0.25.0+201804151244" ;
 
 \ ==============================================================
 \ Description
@@ -275,6 +275,7 @@ variable entry-file
 
 rgx-create implicit-link-rgx
 s" `\S+`" implicit-link-rgx
+\ s" [^`]`\S+`[^`]" implicit-link-rgx \ XXX TODO --
 rgx-compile 0= [if]
   cr .( Compilation of regular expression)
   cr .( for implicit link failed on position ) . cr
@@ -356,16 +357,32 @@ rgx-compile 0= [if]
 2variable after-match
 
 : .matchparts ( -- )
-  cr ." before-match     " before-match     2@ type
-  cr ." link-text        " link-text        2@ type
-  cr ." constrained-code " constrained-code 2@ type
-  cr ." after-match      " after-match      2@ type cr ;
+  debug? if
+    cr ." before-match     «" before-match     2@ type ." »"
+    cr ." link-text        «" link-text        2@ type ." »"
+    cr ." constrained-code «" constrained-code 2@ type ." »"
+    cr ." after-match      «" after-match      2@ type ." »" cr
+  then ;
   \ XXX INFORMER
   \ XXX TMP -- For debugging.
 
 : `<< ( -- ca len ) s" BACKTICKANDOPENCROSSREFERENCE" ;
 
 : >>` ( -- ca len ) s" CLOSECROSSREFERENCEANDBACKTICK" ;
+
+: escaped ( ca len -- ca' len' )
+  s" &#35;"       s" #"   replaced
+  s" &#34;"       s\" \q" replaced
+  s" &#42;"       s" *"   replaced
+  s" &#45;"       s" -"   replaced
+  s" &#60;"       s" <"   replaced
+  s" &#61;"       s" ="   replaced
+  s" &#62;"       s" >"   replaced
+  s" {backslash}" s" \"   replaced ;
+  \ Escape special characters in string _ca len_, returning
+  \ the result string _ca' len'_. Escaping certain characters is
+  \ needed in order to prevent troubles during the conversion of
+  \ Asciidoctor into HTML and PDF.
 
 : match>before ( ca1 len1 +n2 +n1 -- ca2 len2 )
   nip nip >stringer ;
@@ -388,6 +405,7 @@ rgx-compile 0= [if]
   \ whole string in the heap.
 
 : prepare-implicit-link ( ca len -- )
+  debug? if cr ." PREPARE-IMPLICIT-LINK" 2dup type then \ XXX INFORMER
   0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
   4dup match>implicit-link-text link-text   2!
   4dup match>before             before-match 2!
@@ -400,20 +418,6 @@ rgx-compile 0= [if]
   \ XXX TODO -- Simplify: Use 3 groupings in the regex and get
   \ them directly with `rgx-result`.
 
-: escaped ( ca1 len1 -- ca2 len2 )
-  s" &#35;"       s" #"   replaced
-  s" &#34;"       s\" \q" replaced
-  s" &#42;"       s" *"   replaced
-  s" &#45;"       s" -"   replaced
-  s" &#60;"       s" <"   replaced
-  s" &#61;"       s" ="   replaced
-  s" &#62;"       s" >"   replaced
-  s" {backslash}" s" \"   replaced ;
-  \ Escape special characters in string _ca1 len1_, returning
-  \ the result string _ca2 len2_. Escaping certain characters is
-  \ needed in order to prevent troubles during the conversion of
-  \ Asciidoctor into HTML and PDF.
-
 : build-implicit-link ( -- ca len )
   before-match 2@ `<< s+ link-text 2@ entryname>common-id s+
                      s" , " s+ link-text 2@ escaped s+
@@ -422,8 +426,16 @@ rgx-compile 0= [if]
   \
   \ XXX TODO -- Use the stack instead of variables.
 
+: actual-implicit-link? ( -- f )
+  .matchparts
+  before-match 2@ dup if 1- + c@ '`' = if false exit then else 2drop then
+  after-match  2@     if      c@ '`' = if false exit then else  drop then
+  true ;
+
 : implicit-link ( ca1 len1 -- ca2 len2 )
-  prepare-implicit-link build-implicit-link ;
+  debug? if cr ." IMPLICIT-LINK" 2dup type then \ XXX INFORMER
+  2dup prepare-implicit-link
+  actual-implicit-link? if 2drop build-implicit-link then ;
   \ Convert the first implicit link (a word between backticks,
   \ e.g. `entryname`) contained in entry line _ca1 len1_ to
   \ Asciidoctor markup (e.g. <<ID, entryname>>), returning the
@@ -700,19 +712,19 @@ create (heading-markup) max-headings-level chars allot
   header-boundary ;
 
 : start-header ( ca len -- )
-  debug? if cr ." START-HEADER=" 2dup type then \ XXX INFORMER
+  \ debug? if cr ." START-HEADER=" 2dup type then \ XXX INFORMER
   1 entry-line# +!
-  debug? if cr ." In START-HEADER (0) " .s then \ XXX INFORMER
+  \ debug? if cr ." In START-HEADER (0) " .s then \ XXX INFORMER
   2dup first-name
-  debug? if cr ." In START-HEADER (1) " .s then \ XXX INFORMER
+  \ debug? if cr ." In START-HEADER (1) " .s then \ XXX INFORMER
   2dup create-entry-file
-  debug? if cr ." In START-HEADER (2) " .s then \ XXX INFORMER
+  \ debug? if cr ." In START-HEADER (2) " .s then \ XXX INFORMER
   to outfile-id
-  debug? if cr ." In START-HEADER (3) " .s then \ XXX INFORMER
+  \ debug? if cr ." In START-HEADER (3) " .s then \ XXX INFORMER
                        heading cr
-  debug? if cr ." In START-HEADER (4) " .s then \ XXX INFORMER
+  \ debug? if cr ." In START-HEADER (4) " .s then \ XXX INFORMER
        header-boundary
-  debug? if cr ." End of START-HEADER " .s then \ XXX INFORMER
+  \ debug? if cr ." End of START-HEADER " .s then \ XXX INFORMER
   ;
   \ Start an entry header, whose first line is _ca len_.
 
