@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.24.0+201804141312" ;
+: version s" 0.25.0-dev.0+201804151244" ;
 
 \ ==============================================================
 \ Description
@@ -60,17 +60,21 @@ require galope/trim.fs            \ `trim`
 
 variable debugging
 
+debugging off
+
+: debug? ( -- f ) debugging @ ;
+
 : (checkstack) ( ca len -- )
   cr type cr ."   " .s ;
 
 : checkstack ( ca len -- )
-  debugging @ if (checkstack) else 2drop then ;
+  debug? if (checkstack) else 2drop then ;
 
 : (checkstr) ( ca1 len1 ca2 len2 -- )
   (checkstack) cr ."   " 2dup type ;
 
 : checkstr ( ca1 len1 ca2 len2 -- )
-  debugging @ if (checkstr) else 2drop then ;
+  debug? if (checkstr) else 2drop then ;
 
 \ ==============================================================
 \ Misc
@@ -277,9 +281,18 @@ rgx-compile 0= [if]
 
 rgx-create explicit-link-rgx
 s" `<<(\S+)?\s*,\s*(\S+)>>`" explicit-link-rgx
+  \ XXX TODO -- Check.
 rgx-compile 0= [if]
   cr .( Compilation of regular expression)
   cr .( for explicit link failed on position ) . cr
+  quit
+[then]
+
+rgx-create constrained-code-rgx
+s" (.*)``(.+)``(.*)" constrained-code-rgx
+rgx-compile 0= [if]
+  cr .( Compilation of regular expression)
+  cr .( for constrained code failed on position ) . cr
   quit
 [then]
 
@@ -296,6 +309,14 @@ rgx-compile 0= [if]
   \ the implicit link matched by _+n2 +n1_, i.e. the link text
   \ that starts at position _+n1_ and ends before position
   \ _+n2_.
+
+: match>constrained-code ( ca1 len1 +n2 +n1 -- ca2 len2 )
+  2dup match>len 2 - >r nip nip + 1+ r> ;
+  \ Extract from string _ca1 len1_ the code _ca2 len2_ of the
+  \ constrained code matched by _+n2 +n1_, i.e. the code that
+  \ starts at position _+n1_ and ends before position _+n2_.
+  \
+  \ XXX TODO --
 
 : 4dup ( x1..x4 -- x1..x4 x1..x4 )
   2over 2over ;
@@ -326,21 +347,23 @@ rgx-compile 0= [if]
   \ Create a unique cross reference label _ca2 len2_ from entry
   \ name _ca1 len1_ and the currently parsed file.
 
-2variable before-link
+2variable before-match
 2variable xreflabel
 2variable link-text
-2variable after-link
+2variable constrained-code
+2variable after-match
 
-: .linkparts ( -- )
-  cr ." before-link " before-link 2@ type
-  cr ." link-text   " link-text   2@ type
-  cr ." after-link  " after-link  2@ type cr ;
+: .matchparts ( -- )
+  cr ." before-match     " before-match     2@ type
+  cr ." link-text        " link-text        2@ type
+  cr ." constrained-code " constrained-code 2@ type
+  cr ." after-match      " after-match      2@ type cr ;
   \ XXX INFORMER
   \ XXX TMP -- For debugging.
 
-: `<< ( -- ca len ) s" [backtick-here][begin-cross-reference-here]" ;
+: `<< ( -- ca len ) s" BACKTICKANDOPENCROSSREFERENCE" ;
 
-: >>` ( -- ca len ) s" [end-cross-reference-here][backtick-here]" ;
+: >>` ( -- ca len ) s" CLOSECROSSREFERENCEANDBACKTICK" ;
 
 : match>before ( ca1 len1 +n2 +n1 -- ca2 len2 )
   nip nip >stringer ;
@@ -365,12 +388,15 @@ rgx-compile 0= [if]
 : prepare-implicit-link ( ca len -- )
   0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
   4dup match>implicit-link-text link-text   2!
-  4dup match>before             before-link 2!
-       match>after              after-link  2! ;
+  4dup match>before             before-match 2!
+       match>after              after-match  2! ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
   \
   \ XXX TODO -- Use the stack instead of variables.
+  \
+  \ XXX TODO -- Simplify: Use 3 groupings in the regex and get
+  \ them directly with `rgx-result`.
 
 : escaped ( ca1 len1 -- ca2 len2 )
   s" &#35;"       s" #"   replaced
@@ -387,13 +413,12 @@ rgx-compile 0= [if]
   \ Asciidoctor into HTML and PDF.
 
 : build-implicit-link ( -- ca len )
-  before-link 2@ `<< s+ link-text 2@ entryname>common-id s+
+  before-match 2@ `<< s+ link-text 2@ entryname>common-id s+
                      s" , " s+ link-text 2@ escaped s+
-                 >>` s+ after-link 2@ s+ ;
+                 >>` s+ after-match 2@ s+ ;
   \ Build the implicit link from its pieces.
   \
   \ XXX TODO -- Use the stack instead of variables.
-  \ XXX TODO -- Factor and combine with `build-implicit-link`.
 
 : implicit-link ( ca1 len1 -- ca2 len2 )
   prepare-implicit-link build-implicit-link ;
@@ -402,7 +427,7 @@ rgx-compile 0= [if]
   \ Asciidoctor markup (e.g. <<ID, entryname>>), returning the
   \ modified string _ca2 len2_.
   \
-  \ In order to prevent recursion in `implicit-links?`,
+  \ In order to prevent recursion in `implicit-links`,
   \ backticks in the result string are replaced with a temporary
   \ string. They are restored later.
   \
@@ -417,28 +442,88 @@ rgx-compile 0= [if]
   s" >>`" >>` replaced ;
   \ Replace the temporary markup in _ca1 len1_.
 
-: implicit-links? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
-  0 >r begin  2dup implicit-link-rgx rgx-csearch -1 >
-              dup r> + >r
-       while  implicit-link
-       repeat r> 0<> ;
-  \ If the entry line _ca1 len1_ contains implicit links, i.e.
-  \ words sourrounded by backticks, convert them to Asciidoctor
-  \ markup and return the modified string _ca2 len2_ and a true
-  \ flag; else return the original string and a false flag.
+: implicit-link? ( ca len -- f )
+  implicit-link-rgx rgx-csearch -1 > ;
 
-: implicit-links ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  implicit-links? drop ;
+: implicit-links ( ca1 len1 -- ca2 len2 )
+  begin 2dup implicit-link? while implicit-link repeat ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
   \ markup and return the modified string _ca2 len2_; else do
   \ nothing.
 
 : match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  2dup match>len >r nip nip + r> ;
+  2dup match>len >r nip nip + r> >stringer ;
   \ Extract from string _ca1 len1_ the link text of the explicit
   \ link that starts at position _+n1_ and ends before position
-  \ _+n2_.
+  \ _+n2_. Return the result _ca2 len2_ in the `stringer`.
+
+: prepare-constrained-code ( ca len -- )
+  debug? if cr ." PREPARE-CONSTRAINED-CODE" 2dup type then \ XXX INFORMER
+  2dup 1 constrained-code-rgx rgx-result ( ca len +n2 +n1)
+       match>substring
+  debug? if cr ."   BEFORE-MATCH=" 2dup type then \ XXX INFORMER
+       before-match 2!
+  2dup 2 constrained-code-rgx rgx-result ( ca len +n2 +n1)
+       match>substring
+  debug? if cr ."   CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
+       constrained-code 2!
+       3 constrained-code-rgx rgx-result ( ca len +n2 +n1)
+      match>substring
+  debug? if cr ."   AFTER-MATCH=" 2dup type then \ XXX INFORMER
+       before-match 2!
+      after-match 2! ;
+  \ Prepare the first implicit link found in string _ca len_
+  \ by extracting its pieces into variables.
+
+: `` ( -- ca len ) s" DOUBLEBACKTICKSWEREHERE" ;
+
+: preserve-double-backticks ( ca len -- ca' len' )
+  `` s" ``" replaced ;
+  \ Preserve all double backticks in _ca len_, replacing them
+  \ with a temporary markup.
+
+: restore-double-backticks ( ca len -- ca' len' )
+  s" ``" `` replaced ;
+  \ Restore all double backticks that were in _ca len_ replacing the
+  \ temporary markup with actual double backticks.
+
+: build-constrained-code ( -- ca len )
+  debug? if cr ." BUILD-CONSTRAINED-CODE " then \ XXX INFORMER
+  before-match 2@ `` s+ constrained-code 2@ escaped s+ `` s+
+  cr ." HOLA1"
+  after-match 2@
+  cr ." HOLA2"
+  s+
+  debug? if cr ." BUILD-CONSTRAINED-CODE" 2dup type then \ XXX INFORMER
+  ;
+  \ Build the constrained code from its pieces.
+
+: (constrained-code ( ca1 len1 -- ca2 len2 )
+  debug? if cr ." (CONSTRAINED-CODE " then \ XXX INFORMER
+  prepare-constrained-code build-constrained-code ;
+  \ Manage the first constrained code (a text between double
+  \ backticks, e.g. ``dup + drop``) contained in entry line _ca1
+  \ len1_.
+
+: constrained-code? ( ca len -- f )
+  debug? if cr .s cr ." CONSTRAINED-CODE? " then \ XXX INFORMER
+  constrained-code-rgx rgx-csearch -1 >
+  debug? if cr ." End of CONSTRAINED-CODE?=" dup . then \ XXX INFORMER
+  ;
+
+: convert-constrained-code ( ca len -- ca' len' )
+  debug? if cr .s cr ." CONVERT-CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
+  begin  2dup constrained-code?
+  while  (constrained-code
+  repeat
+  debug? if cr .s cr ." CONVERT-CONSTRAINED-CODE before restore=" 2dup type then \ XXX INFORMER
+  restore-double-backticks
+  debug? if cr ." End of CONVERT-CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
+  ;
+  \ If the entry line _ca len_ contains constrained code, i.e.
+  \ code sourrounded by double backticks, escape the especial
+  \ characters of the code.
 
 : prepare-explicit-link ( ca len -- )
   2>r
@@ -447,19 +532,17 @@ rgx-compile 0= [if]
   2r@ 2 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
         match>substring link-text 2!
   2r> 0 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
-        4dup match>before before-link 2!
-             match>after  after-link  2! ;
+        4dup match>before before-match 2!
+             match>after  after-match  2! ;
   \ Prepare the first explicit link found in string _ca len_ by
   \ extracting its pieces into variables.
   \
   \ XXX TODO -- Use the stack instead of variables.
 
 : build-explicit-link ( -- ca len )
-  before-link 2@ `<< s+ link-text 2@ xreflabel 2@ >unique-id s+
-                     \ s" , pass:c[" s+ link-text 2@ s+ s" ]" s+
-                     \ XXX OLD
+  before-match 2@ `<< s+ link-text 2@ xreflabel 2@ >unique-id s+
                      s" , " s+ link-text 2@ escaped s+
-                 >>` s+ after-link 2@ s+ ;
+                 >>` s+ after-match 2@ s+ ;
   \ Build the explicit link from its pieces.
   \
   \ XXX TODO -- Use the stack instead of variables.
@@ -468,44 +551,27 @@ rgx-compile 0= [if]
 : explicit-link ( ca1 len1 -- ca2 len2 )
   prepare-explicit-link build-explicit-link ;
 
-: explicit-links? ( ca1 len1 -- ca1 len1 false | ca2 len2 true )
-  0 >r begin  2dup explicit-link-rgx rgx-csearch -1 >
-              dup r> + >r
-       while  explicit-link
-       repeat r> 0<> ;
-  \ If the entry line _ca1 len1_ contains explicit and
-  \ unfinished Asciidoctor links, finish them and
-  \ return the modified string _ca2 len2_ and a true flag; else
-  \ return the original string and a false flag.
+: explicit-link? ( ca len -- ? )
+  explicit-link-rgx rgx-csearch -1 > ;
 
-: explicit-links ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  explicit-links? drop ;
-  \ If the entry line _ca1 len1_ contains explicit and
-  \ unfinished Asciidoctor links, finish them and
-  \ return the modified string _ca2 len2_; else do nothing.
+: explicit-links ( ca len -- ca' len' )
+  begin 2dup explicit-link? while explicit-link repeat ;
+  \ If the entry line _ca len_ contains explicit and unfinished
+  \ Asciidoctor links, finish them and return the modified
+  \ string _ca' len'_; otherwise do nothing, and _ca' len'_ is
+  \ identical to _ca len_.
 
-: double-backticks-substitution ( -- ca len )
-  s" [Unconstrained monospace markup was here!]" ;
-  \ The temporary string used to replace double backticks.
-
-: preserve-double-backticks ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  double-backticks-substitution s" ``" replaced ;
-  \ Replace all double backticks in _ca1 len1_ with a temporary
-  \ string.
-
-: restore-double-backticks ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  s" ``" double-backticks-substitution replaced ;
-  \ Restore all double backticks that were in _ca1 len1_,
-  \ replacing the temporary string used by
-  \ `preserve-double-backticks`.
-
-: links ( ca1 len1 -- ca1 len1 | ca2 len2 )
+: convert-links ( ca len -- ca' len' )
+  debug? if cr ." CONVERT-LINKS=" 2dup type then \ XXX INFORMER
   preserve-double-backticks explicit-links
                             implicit-links finish-links
-  restore-double-backticks ;
-  \ If the entry line _ca1 len1_ contains links,
+  restore-double-backticks
+  debug? if cr ." End of CONVERT-LINKS=" 2dup type then \ XXX INFORMER
+  ;
+  \ If the entry line _ca len_ contains links,
   \ convert them to Asciidoctor markup and return the modified
-  \ string _ca2 len2_; else do nothing.
+  \ string _ca' len'_; else do nothing and _ca' len'_ is
+  \ identical to _ca len_.
   \
   \ Note: The order matters. Explicit links must be treated
   \ first. Otherwise, a explicit link without a space at any
@@ -605,8 +671,6 @@ create (heading-markup) max-headings-level chars allot
   \ id block attribute, which is unique for each entry.
 
 : heading-line ( ca len )
-  \ .heading-markup 2dup common-anchor ." pass:c[" type ." ]" cr ;
-                     \ XXX OLD
   .heading-markup 2dup common-anchor escaped type cr ;
   \ Create a glossary heading line for entry name _ca len_.
   \ The Asciidoctor inline macro `pass:[]` is used to force
@@ -634,17 +698,33 @@ create (heading-markup) max-headings-level chars allot
   header-boundary ;
 
 : start-header ( ca len -- )
+  debug? if cr ." START-HEADER=" 2dup type then \ XXX INFORMER
   1 entry-line# +!
-  2dup first-name 2dup create-entry-file to outfile-id
+  debug? if cr ." In START-HEADER (0) " .s then \ XXX INFORMER
+  2dup first-name
+  debug? if cr ." In START-HEADER (1) " .s then \ XXX INFORMER
+  2dup create-entry-file
+  debug? if cr ." In START-HEADER (2) " .s then \ XXX INFORMER
+  to outfile-id
+  debug? if cr ." In START-HEADER (3) " .s then \ XXX INFORMER
                        heading cr
-       header-boundary ;
+  debug? if cr ." In START-HEADER (4) " .s then \ XXX INFORMER
+       header-boundary
+  debug? if cr ." End of START-HEADER " .s then \ XXX INFORMER
+  ;
   \ Start an entry header, whose first line is _ca len_.
 
 : start-of-header? ( -- f )
-  entry-line# @ 2 = ;
+  debug? if cr ." START-OF-HEADER? " then \ XXX INFORMER
+  entry-line# @ 2 =
+  debug? if cr ." START-OF-HEADER?=" dup . then \ XXX INFORMER
+  ;
 
 : end-of-header? ( len -- f )
-  0= processing-header? and ;
+  debug? if cr ." END-OF-HEADER? " then \ XXX INFORMER
+  0= processing-header? and
+  debug? if cr ." END-OF-HEADER?=" dup . then \ XXX INFORMER
+  ;
 
 : update-entry-line# ( len -- )
   0<> abs entry-line# +! ;
@@ -652,10 +732,13 @@ create (heading-markup) max-headings-level chars allot
   \ is not zero, increase the count of entry lines.
 
 : (process-entry-line) ( ca len -- )
+  debug? if cr ." (PROCESS-ENTRY-LINE)=" 2dup type then \ XXX INFORMER
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  links type cr ;
+  \ convert-constrained-code \ XXX TODO --
+  debug? if cr ." (PROCESS-ENTRY-LINE) before CONVERT-LINKS=" 2dup type then \ XXX INFORMER
+  convert-links type cr ;
   \ Process line _ca len_, which is part of the contents
   \ of a glossary entry.
 
@@ -666,6 +749,7 @@ create (heading-markup) max-headings-level chars allot
   add-source-file entry-line# off ;
 
 : process-entry-line ( ca len -- )
+  debug? if cr ." PROCESS-ENTRY-LINE=" 2dup type then \ XXX INFORMER
   2dup end-of-entry? if   2drop end-entry
                      else (process-entry-line) then ;
   \ Process line _ca len_, which is part of a glossary
@@ -678,10 +762,13 @@ create (heading-markup) max-headings-level chars allot
   \ supposed to be the Forth line comment backslash, or the
   \ corresponding markup of other languages.
 
-: entry? ( -- f ) entry-line# @ 0<> ;
+: entry? ( -- f )
+  debug? if cr ." ENTRY? " then \ XXX INFORMER
+  entry-line# @ 0<> ;
   \ Is there an entry being processed?
 
 : process-line ( ca len -- )
+  debug? if cr ." LINE=" 2dup type then \ XXX INFORMER
   tidy entry? if process-entry-line else ?start-entry then ;
   \ Process line _ca len_.
 
@@ -704,6 +791,7 @@ create (heading-markup) max-headings-level chars allot
   \ print it to standard output.
 
 : parse-input-file ( ca len -- )
+  debug? if cr ." FILE=" 2dup type then \ XXX INFORMER
   2dup parsed-file 2!
   r/o open-file throw dup parse-file close-file throw ;
   \ Extract the glossary information from file _ca len_ and
