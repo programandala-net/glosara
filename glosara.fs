@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.25.0+201804151244" ;
+: version s" 0.26.0-dev.0+201804171138" ;
 
 \ ==============================================================
 \ Description
@@ -828,12 +828,12 @@ create (heading-markup) max-headings-level chars allot
 
 : cat ( -- ca len )
   s" cat " entry-files-pattern s+ ;
-  \ Return the shell `cat` command to concatenate and print all
-  \ glossary entry files.
+  \ Return the shell `cat` command that concatenates all the
+  \ entry files and sends them to standard output.
 
-: glossary ( -- )
+: (run) ( -- )
   cat >file system ;
-  \ Print the final glossary to standard output or to the output
+  \ Send all the entry files to standard output or to the output
   \ file, if specified.
 
 \ ==============================================================
@@ -846,17 +846,26 @@ version
 s" (C) 2015-2017 Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
-\ Add the default ?/--help option:
+\ Add the default -?/--help option:
 arguments arg-add-help-option
 
 \ Add the default --version option:
 arguments arg-add-version-option
 
+\ Add the -a/--action option:
+4 constant arg.input-option
+'a'               \ short option
+s" action"         \ long option
+s" set action: 'glossary' (default) or 'links' (only convert links)"
+                  \ description
+false             \ switch type
+arg.action-option arguments arg-add-option
+
 \ Add the -i/--input option:
 4 constant arg.input-option
 'i'               \ short option
 s" input"         \ long option
-s" set file that contains a list of input files (one per line)"
+s" set file containing a list of input files (one per line)"
                   \ description
 false             \ switch type
 arg.input-option arguments arg-add-option
@@ -879,7 +888,7 @@ s" set the output file" \ description
 false                   \ switch type
 arg.output-option arguments arg-add-option
 
-\ Add the -v/--verbose option:
+\ Add the -u/--unique option:
 7 constant arg.unique-option
 'u'                           \ short option
 s" unique"                    \ long option
@@ -899,7 +908,8 @@ arg.verbose-option arguments arg-add-option
 9 constant arg.markers-option
 'm'                       \ short option
 s" markers"               \ long option
-s" set markers; e.g. 'glossary{ }glossary'" \ description
+s" set markers, e.g. 'glossary{ }glossary'; default: `doc{ }doc`"
+                          \ description
 false                     \ switch type
 arg.markers-option arguments arg-add-option
 
@@ -927,6 +937,12 @@ variable helped \ flag: help already shown?
   d>s dup min-headings-level max-headings-level 1+ within 0=
   abort" Headings level not in range 1..6"
   headings-level ! ;
+
+: action-option ( ca len -- )
+  2dup s" glossary" str= if then
+       s" links"    str= if then
+  true abort" Invalid action" ! ;
+  \ XXX TODO --
 
 variable input-files# \ counter
 
@@ -964,6 +980,7 @@ variable tmp \ XXX TMP --
     arg.verbose-option of verbose-option endof
     arg.level-option   of level-option   endof
     arg.markers-option of markers-option endof
+    arg.action-option  of action-option  endof
     arg.non-option     of input-file     endof
   endcase ;
 
@@ -988,7 +1005,7 @@ variable tmp \ XXX TMP --
   \ Fine options?
 
 : run ( -- )
-  init options fine? if glossary else help then ;
+  init options fine? if (run) else help then ;
 
 run bye
 

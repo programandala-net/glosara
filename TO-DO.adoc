@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2018-04-15
+:revdate: 2018-04-17
 
 == 2017-02-15
 
@@ -35,3 +35,13 @@ one single manual.
 == 2018-04-14
 
 Escape the constrained code.
+
+== 2018-04-17
+
+Add `--action` option to select "glossary" or "links".
+
+The "links" action converts only the implicit links. This is useful to
+link Forth words mentioned in other parts of the manual into the
+glossary.
+
+Combine with the planned "--mode" option.
