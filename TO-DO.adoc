@@ -38,10 +38,13 @@ Escape the constrained code.
 
 == 2018-04-17
 
-Add `--action` option to select "glossary" or "links".
+Combine `--annex` with the planned `--mode` option.
 
-The "links" action converts only the implicit links. This is useful to
-link Forth words mentioned in other parts of the manual into the
-glossary.
+== 2018-04-17
 
-Combine with the planned "--mode" option.
+Check if it's useful to create explicit links with `--annex`, or
+implicit links is enough.
+
+== 2018-04-17
+
+Enable several `--output`. Just change the current one.

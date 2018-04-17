@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.26.0-dev.0+201804171138" ;
+: version s" 0.26.0+201804171753" ;
 
 \ ==============================================================
 \ Description
@@ -87,9 +87,14 @@ variable verbose
 variable unique
   \ Flag: unique mode?
 
+variable annex
+  \ Flag: annex mode? In annex mode, the input file is not a
+  \ glossary but an annex, whose implicit links are converted to
+  \ actual links into the glossary.
+
 : echo ( ca len -- )
   verbose @ if type cr else 2drop then ;
-  \ Print the string _ca len_ if `verbose` is on.
+  \ Display the string _ca len_ if `verbose` is on.
 
 \ ==============================================================
 \ Strings
@@ -154,21 +159,27 @@ wordlist constant counters-wordlist
 
 2variable output-filename
 
-2variable parsed-file
+2variable processed-file
 
 variable output-file \ output file identifier
 
+: set-output ( -- )
+  to outfile-id ;
+
 : set-standard-output ( -- )
-  stdout to outfile-id ;
+  stdout set-output ;
 
-: create-output-file ( -- fid )
-  output-filename 2@
+: create-output-file ( ca len -- fid )
   w/o create-file throw dup output-file ! ;
-  \ XXX TODO -- Not used.
 
-: close-output-file ( -- )
-  output-file @ close-file throw ;
-  \ XXX TODO -- Not used.
+: update-output ( -- )
+  output-filename 2@ dup if   create-output-file set-output
+                         else 2drop
+                         then ;
+
+: restore-output ( -- )
+  output-file @ ?dup if   close-file throw
+                     then set-standard-output ;
 
                        31 constant max-word-length
 max-word-length 2 * chars constant /basefilename
@@ -199,7 +210,7 @@ create null-filename /basefilename allot
   \ XXX TODO -- Complete the conversion of special characters.
 
 : xreflabel-file-suffix ( -- ca len )
-  parsed-file 2@ filename>xreflabel-suffix ;
+  processed-file 2@ filename>xreflabel-suffix ;
 
 : entryname>suffix ( ca1 len2 -- ca2 len2 )
   entryname>count-suffix s" -" s+ xreflabel-file-suffix s+ ;
@@ -225,9 +236,9 @@ create null-filename /basefilename allot
 
 variable entry-file
 
-: (close-entry-file) ( -- )
+: (close-entry-file) ( fid -- )
   close-file throw entry-file off ;
-  \ Close the glossary entry file.
+  \ Close the glossary entry file _fid_.
 
 : close-entry-file ( -- )
   entry-file @ ?dup if (close-entry-file) then ;
@@ -330,7 +341,7 @@ rgx-compile 0= [if]
   \ _ca1 len1_.
 
 : ?filename ( ca1 len1 -- ca1 len1 | ca2 len2 )
-  ?dup 0= if drop parsed-file 2@ then ;
+  ?dup 0= if drop processed-file 2@ then ;
   \ If filename _ca1 len1_ is empty, return the currently parsed
   \ file _ca2 len2_ instead.
   \
@@ -346,7 +357,7 @@ rgx-compile 0= [if]
   \ name _ca1 len1_ and filename_ca2 len2_.
 
 : entryname>unique-id ( ca1 len1 -- ca2 len2 )
-  parsed-file 2@ >unique-id ;
+  processed-file 2@ >unique-id ;
   \ Create a unique cross reference label _ca2 len2_ from entry
   \ name _ca1 len1_ and the currently parsed file.
 
@@ -432,7 +443,7 @@ rgx-compile 0= [if]
   after-match  2@     if      c@ '`' = if false exit then else  drop then
   true ;
 
-: implicit-link ( ca1 len1 -- ca2 len2 )
+: convert-implicit-link ( ca1 len1 -- ca2 len2 )
   debug? if cr ." IMPLICIT-LINK" 2dup type then \ XXX INFORMER
   2dup prepare-implicit-link
   actual-implicit-link? if 2drop build-implicit-link then ;
@@ -459,8 +470,8 @@ rgx-compile 0= [if]
 : implicit-link? ( ca len -- f )
   implicit-link-rgx rgx-csearch -1 > ;
 
-: implicit-links ( ca1 len1 -- ca2 len2 )
-  begin 2dup implicit-link? while implicit-link repeat ;
+: convert-implicit-links ( ca1 len1 -- ca2 len2 )
+  begin 2dup implicit-link? while convert-implicit-link repeat ;
   \ If the entry line _ca1 len1_ contains implicit links, i.e.
   \ words sourrounded by backticks, convert them to Asciidoctor
   \ markup and return the modified string _ca2 len2_; else do
@@ -562,14 +573,14 @@ rgx-compile 0= [if]
   \ XXX TODO -- Use the stack instead of variables.
   \ XXX TODO -- Factor and combine with `build-implicit-link`.
 
-: explicit-link ( ca1 len1 -- ca2 len2 )
+: convert-explicit-link ( ca1 len1 -- ca2 len2 )
   prepare-explicit-link build-explicit-link ;
 
 : explicit-link? ( ca len -- ? )
   explicit-link-rgx rgx-csearch -1 > ;
 
-: explicit-links ( ca len -- ca' len' )
-  begin 2dup explicit-link? while explicit-link repeat ;
+: convert-explicit-links ( ca len -- ca' len' )
+  begin 2dup explicit-link? while convert-explicit-link repeat ;
   \ If the entry line _ca len_ contains explicit and unfinished
   \ Asciidoctor links, finish them and return the modified
   \ string _ca' len'_; otherwise do nothing, and _ca' len'_ is
@@ -577,8 +588,8 @@ rgx-compile 0= [if]
 
 : convert-links ( ca len -- ca' len' )
   debug? if cr ." CONVERT-LINKS=" 2dup type then \ XXX INFORMER
-  preserve-double-backticks explicit-links
-                            implicit-links finish-links
+  preserve-double-backticks convert-explicit-links
+                            convert-implicit-links finish-links
   restore-double-backticks
   debug? if cr ." End of CONVERT-LINKS=" 2dup type then \ XXX INFORMER
   ;
@@ -757,7 +768,7 @@ create (heading-markup) max-headings-level chars allot
   \ of a glossary entry.
 
 : add-source-file ( -- )
-  cr ." Source file: <" parsed-file 2@ type ." >." cr ;
+  cr ." Source file: <" processed-file 2@ type ." >." cr ;
 
 : end-entry ( -- )
   add-source-file entry-line# off ;
@@ -789,27 +800,29 @@ create (heading-markup) max-headings-level chars allot
 : read-line? ( fid -- ca len f )
   >r line-buffer dup /line-buffer r> read-line throw ;
 
-: begin-parsing ( -- )
-  entry-line# off entry-header off header-status off ;
-  \ Init the parser variables.
-
-: end-parsing ( -- )
-  close-entry-file set-standard-output ;
-  \ Set `emit` and `type` to standard output.
-
-: parse-file ( fid -- )
-  begin-parsing
+: process-glossary-file ( fid -- )
+  entry-line# off entry-header off header-status off
   begin dup read-line? while process-line repeat 2drop
-  end-parsing ;
-  \ Extract the glossary information from file _fid_ and
-  \ print it to standard output.
+  close-entry-file set-standard-output ;
+  \ Process the glossary file _fid_, extracting the glossary
+  \ entries from it and creating the corresponding entry files.
 
-: parse-input-file ( ca len -- )
+: process-annex-file ( fid -- )
+  update-output
+  begin dup read-line? while convert-links type cr repeat 2drop
+  restore-output ;
+  \ Process the annex file _fid_, converting the links found in
+  \ it and sending the result to the current output.
+
+defer (process-file) ( fid -- )
+
+' process-glossary-file ' (process-file) defer!
+
+: process-file ( ca len -- )
   debug? if cr ." FILE=" 2dup type then \ XXX INFORMER
-  2dup parsed-file 2!
-  r/o open-file throw dup parse-file close-file throw ;
-  \ Extract the glossary information from file _ca len_ and
-  \ print it to standard output.
+  2dup processed-file 2!
+  r/o open-file throw dup (process-file) close-file throw ;
+  \ Process the glossary or annex file _ca len_.
 
 \ ==============================================================
 \ Glossary
@@ -829,12 +842,16 @@ create (heading-markup) max-headings-level chars allot
 : cat ( -- ca len )
   s" cat " entry-files-pattern s+ ;
   \ Return the shell `cat` command that concatenates all the
-  \ entry files and sends them to standard output.
+  \ glossary entry files and sends them to standard output.
 
-: (run) ( -- )
+: create-glossary ( -- )
   cat >file system ;
-  \ Send all the entry files to standard output or to the output
-  \ file, if specified.
+  \ Send all the glossary entry files to standard output or to
+  \ the output file, if specified.
+
+: finnish ( -- )
+  annex @ 0= if create-glossary then ;
+  \ Finnish the task, by creating the glossary file, if needed.
 
 \ ==============================================================
 \ Argument parser
@@ -851,15 +868,6 @@ arguments arg-add-help-option
 
 \ Add the default --version option:
 arguments arg-add-version-option
-
-\ Add the -a/--action option:
-4 constant arg.input-option
-'a'               \ short option
-s" action"         \ long option
-s" set action: 'glossary' (default) or 'links' (only convert links)"
-                  \ description
-false             \ switch type
-arg.action-option arguments arg-add-option
 
 \ Add the -i/--input option:
 4 constant arg.input-option
@@ -913,6 +921,15 @@ s" set markers, e.g. 'glossary{ }glossary'; default: `doc{ }doc`"
 false                     \ switch type
 arg.markers-option arguments arg-add-option
 
+\ Add the -a/--annex option:
+10 constant arg.annex-option
+'a'               \ short option
+s" annex"         \ long option
+s" set annex mode: only convert the links"
+                  \ description
+true              \ switch type
+arg.annex-option arguments arg-add-option
+
 : markers-option ( ca len -- )
   2dup first-name      dup ?marker starting-marker place
   /name 1 /string trim dup ?marker ending-marker   place ;
@@ -938,17 +955,14 @@ variable helped \ flag: help already shown?
   abort" Headings level not in range 1..6"
   headings-level ! ;
 
-: action-option ( ca len -- )
-  2dup s" glossary" str= if then
-       s" links"    str= if then
-  true abort" Invalid action" ! ;
-  \ XXX TODO --
+: annex-option ( -- )
+  ['] process-annex-file ['] (process-file) defer! annex on ;
 
 variable input-files# \ counter
 
 : input-file ( ca len -- )
   1 input-files# +!
-  s" Processing input file " 2over s+ echo parse-input-file ;
+  s" Processing input file " 2over s+ echo process-file ;
 
 variable tmp \ XXX TMP --
 
@@ -980,7 +994,7 @@ variable tmp \ XXX TMP --
     arg.verbose-option of verbose-option endof
     arg.level-option   of level-option   endof
     arg.markers-option of markers-option endof
-    arg.action-option  of action-option  endof
+    arg.annex-option   of annex-option   endof
     arg.non-option     of input-file     endof
   endcase ;
 
@@ -993,8 +1007,9 @@ variable tmp \ XXX TMP --
 
 : init ( -- )
   helped off
-  delete-entry-files argc off
-  input-files# off verbose off output-filename off unique off
+  delete-entry-files argc off entry-file off
+  input-files# off verbose off output-filename off
+  unique off annex off
   2 headings-level ! ;
 
 : options ( -- )
@@ -1005,7 +1020,7 @@ variable tmp \ XXX TMP --
   \ Fine options?
 
 : run ( -- )
-  init options fine? if (run) else help then ;
+  init options fine? if finnish else help then ;
 
 run bye
 
