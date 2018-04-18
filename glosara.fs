@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.27.0+201804181229" ;
+: version s" 0.28.0-dev.0+201804181237" ;
 
 \ ==============================================================
 \ Description
@@ -293,7 +293,7 @@ rgx-compile 0= [if]
 [then]
 
 rgx-create explicit-link-rgx
-s" `<<(\S+)?\s*,\s*(\S+)>>`" explicit-link-rgx
+s" (.*)`<<(\S+)?\s*,\s*(\S+)>>`(.*)" explicit-link-rgx
   \ XXX TODO -- Check.
 rgx-compile 0= [if]
   cr .( Compilation of regular expression)
@@ -394,6 +394,8 @@ rgx-compile 0= [if]
   \ needed in order to prevent troubles during the conversion of
   \ Asciidoctor into HTML and PDF.
 
+0 [if] \ XXX OLD
+
 : match>before ( ca1 len1 +n2 +n1 -- ca2 len2 )
   nip nip >stringer ;
   \ Return string _ca2 len2_ that is the left part of string
@@ -413,6 +415,8 @@ rgx-compile 0= [if]
   \ len1_ done by `escaped`, which may make it longer,
   \ overwritting the right part after the match, or move the
   \ whole string in the heap.
+
+[then]
 
 : match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
   2dup match>len >r nip nip + r> >stringer ;
@@ -436,16 +440,12 @@ rgx-compile 0= [if]
        after-match 2!  ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
-  \
-  \ XXX TODO -- Use the stack instead of variables.
 
 : build-implicit-link ( -- ca len )
   before-match 2@ `<< s+ link-text 2@ entryname>common-id s+
                      s" , " s+ link-text 2@ escaped s+
                  >>` s+ after-match 2@ s+ ;
   \ Build the implicit link from its pieces.
-  \
-  \ XXX TODO -- Use the stack instead of variables.
 
 : actual-implicit-link? ( -- f )
   .matchparts
@@ -479,6 +479,8 @@ rgx-compile 0= [if]
 
 : implicit-link? ( ca len -- f )
   implicit-link-rgx rgx-csearch -1 > ;
+  \ Does string _ca len_ contain an implicit link, i.e.
+  \ a word sourrounded by backticks?
 
 : convert-implicit-links ( ca1 len1 -- ca2 len2 )
   begin 2dup implicit-link? while convert-implicit-link repeat ;
@@ -539,6 +541,7 @@ rgx-compile 0= [if]
   constrained-code-rgx rgx-csearch -1 >
   debug? if cr ." End of CONSTRAINED-CODE?=" dup . then \ XXX INFORMER
   ;
+  \ Does string _ca len_ contain constrained code?
 
 : convert-constrained-code ( ca len -- ca' len' )
   debug? if cr .s cr ." CONVERT-CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
@@ -554,18 +557,16 @@ rgx-compile 0= [if]
   \ characters of the code.
 
 : prepare-explicit-link ( ca len -- )
-  2>r
-  2r@ 1 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
-        match>substring xreflabel 2!
-  2r@ 2 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
-        match>substring link-text 2!
-  2r> 0 explicit-link-rgx rgx-result ( ca1 len1 +n2 +n1)
-        4dup match>before before-match 2!
-             match>after  after-match  2! ;
+  2dup 1 explicit-link-rgx rgx-result ( ca len +n2 +n1)
+         match>substring before-match 2!
+  2dup 2 explicit-link-rgx rgx-result ( ca len +n2 +n1)
+         match>substring xreflabel 2!
+  2dup 3 explicit-link-rgx rgx-result ( ca len +n2 +n1)
+         match>substring link-text 2!
+       4 explicit-link-rgx rgx-result ( ca len +n2 +n1)
+         match>substring after-match  2! ;
   \ Prepare the first explicit link found in string _ca len_ by
   \ extracting its pieces into variables.
-  \
-  \ XXX TODO -- Use the stack instead of variables.
 
 : build-explicit-link ( -- ca len )
   before-match 2@ `<< s+ link-text 2@ xreflabel 2@ >unique-id s+
@@ -573,14 +574,14 @@ rgx-compile 0= [if]
                  >>` s+ after-match 2@ s+ ;
   \ Build the explicit link from its pieces.
   \
-  \ XXX TODO -- Use the stack instead of variables.
   \ XXX TODO -- Factor and combine with `build-implicit-link`.
 
 : convert-explicit-link ( ca1 len1 -- ca2 len2 )
   prepare-explicit-link build-explicit-link ;
 
-: explicit-link? ( ca len -- ? )
+: explicit-link? ( ca len -- f )
   explicit-link-rgx rgx-csearch -1 > ;
+  \ Does string _ca len_ contain an explicit link?
 
 : convert-explicit-links ( ca len -- ca' len' )
   begin 2dup explicit-link? while convert-explicit-link repeat ;
