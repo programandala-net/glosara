@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.28.0-dev.0+201804181237" ;
+: version s" 0.28.0+201804181604" ;
 
 \ ==============================================================
 \ Description
@@ -309,31 +309,6 @@ rgx-compile 0= [if]
   quit
 [then]
 
-: match>len ( +n2 +n1 -- len )
-  - ;
-  \ Convert regular expression match result start position _+n1_
-  \ and end position _+n2_ to the length _len_ of the
-  \ corresponding substring.
-  \ XXX TODO -- Remove.
-
-: match>implicit-link-text ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  2dup match>len 2 - >r nip nip + 1+ r> ;
-  \ Extract from string _ca1 len1_ the link text _ca2 len2_ of
-  \ the implicit link matched by _+n2 +n1_, i.e. the link text
-  \ that starts at position _+n1_ and ends before position
-  \ _+n2_.
-
-: match>constrained-code ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  2dup match>len 2 - >r nip nip + 1+ r> ;
-  \ Extract from string _ca1 len1_ the code _ca2 len2_ of the
-  \ constrained code matched by _+n2 +n1_, i.e. the code that
-  \ starts at position _+n1_ and ends before position _+n2_.
-  \
-  \ XXX TODO --
-
-: 4dup ( x1..x4 -- x1..x4 x1..x4 )
-  2over 2over ;
-
 : entryname>common-id ( ca1 len1 -- ca2 len2 )
   string>hex s" entry" 2swap s+ ;
   \ Create a cross reference label _ca2 len2_ from entry name
@@ -394,32 +369,8 @@ rgx-compile 0= [if]
   \ needed in order to prevent troubles during the conversion of
   \ Asciidoctor into HTML and PDF.
 
-0 [if] \ XXX OLD
-
-: match>before ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  nip nip >stringer ;
-  \ Return string _ca2 len2_ that is the left part of string
-  \ _ca1 len1_ before a regular expression match result _+n2
-  \ +n1_, being _+n1_ the start of the match and _+n2_ the end
-  \ of the match. _ca2 len2_ is in the `stringer`, in order to
-  \ protect it from later modifications of the main string _ca1
-  \ len1_ done by `escaped`, which may move it in the heap.
-
-: match>after ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  drop /string >stringer ;
-  \ Return string _ca2 len2_ that is the right part of string
-  \ _ca1 len1_ after a regular expression match result _+n2
-  \ +n1_, being _+n1_ the start of the match and _+n2_ the end
-  \ of the match. _ca2 len2_ is in the `stringer`, in order to
-  \ protect it from later modifications of the main string _ca1
-  \ len1_ done by `escaped`, which may make it longer,
-  \ overwritting the right part after the match, or move the
-  \ whole string in the heap.
-
-[then]
-
 : match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  2dup match>len >r nip nip + r> >stringer ;
+  2dup - >r nip nip + r> >stringer ;
   \ Extract from string _ca1 len1_ the link text of the explicit
   \ link that starts at position _+n1_ and ends before position
   \ _+n2_. Return the result _ca2 len2_ in the `stringer`.
