@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.29.0+201804181612" ;
+: version s" 0.30.0+201804181625" ;
 
 \ ==============================================================
 \ Description
@@ -392,11 +392,15 @@ rgx-compile 0= [if]
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
 
+: build-link ( ca1 len1 -- ca2 len2 )
+  before-match 2@ `<< s+ 2swap s+ s" , " s+ link-text 2@ escaped s+
+                  >>` s+ after-match 2@ s+ ;
+  \ Build a link from its previously extracted pieces and
+  \ the destination label _ca1 len1_.
+
 : build-implicit-link ( -- ca len )
-  before-match 2@ `<< s+ link-text 2@ entryname>common-id s+
-                     s" , " s+ link-text 2@ escaped s+
-                 >>` s+ after-match 2@ s+ ;
-  \ Build the implicit link from its pieces.
+  link-text 2@ entryname>common-id build-link ;
+  \ Build an implicit link from its previously extracted pieces.
 
 : actual-implicit-link? ( -- f )
   .matchparts
@@ -517,12 +521,8 @@ rgx-compile 0= [if]
   \ extracting its pieces into variables.
 
 : build-explicit-link ( -- ca len )
-  before-match 2@ `<< s+ link-text 2@ xreflabel 2@ >unique-id s+
-                     s" , " s+ link-text 2@ escaped s+
-                 >>` s+ after-match 2@ s+ ;
-  \ Build the explicit link from its pieces.
-  \
-  \ XXX TODO -- Factor and combine with `build-implicit-link`.
+  link-text 2@ xreflabel 2@ >unique-id build-link ;
+  \ Build an explicit link from its previously extracted pieces.
 
 : convert-explicit-link ( ca1 len1 -- ca2 len2 )
   prepare-explicit-link build-explicit-link ;
