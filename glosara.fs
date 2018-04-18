@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.26.0+201804171753" ;
+: version s" 0.27.0-dev.0+201804171753" ;
 
 \ ==============================================================
 \ Description
@@ -284,9 +284,17 @@ variable entry-file
 \   borrows `0branch` from fig-Forth [...]
 \ ____
 
+true constant [improved-implicit-link-rgx] immediate
+  \ XXX TMP --
+
 rgx-create implicit-link-rgx
-s" `\S+`" implicit-link-rgx
-\ s" [^`]`\S+`[^`]" implicit-link-rgx \ XXX TODO --
+
+[improved-implicit-link-rgx] [if]
+  s" (.*)`(\S+)`(.*)" implicit-link-rgx
+  \ s" [^`]`\S+`[^`]" implicit-link-rgx \ XXX TODO --
+[else]
+  s" `\S+`" implicit-link-rgx
+[then]
 rgx-compile 0= [if]
   cr .( Compilation of regular expression)
   cr .( for implicit link failed on position ) . cr
@@ -415,12 +423,38 @@ rgx-compile 0= [if]
   \ overwritting the right part after the match, or move the
   \ whole string in the heap.
 
+: match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
+  2dup match>len >r nip nip + r> >stringer ;
+  \ Extract from string _ca1 len1_ the link text of the explicit
+  \ link that starts at position _+n1_ and ends before position
+  \ _+n2_. Return the result _ca2 len2_ in the `stringer`.
+
 : prepare-implicit-link ( ca len -- )
   debug? if cr ." PREPARE-IMPLICIT-LINK" 2dup type then \ XXX INFORMER
+
+  [improved-implicit-link-rgx] [if] \ XXX NEW
+
+  2dup 1 implicit-link-rgx rgx-result ( ca len +n2 +n1)
+       match>substring
+  debug? if cr ."   BEFORE-MATCH=" 2dup type then \ XXX INFORMER
+       before-match 2!
+  2dup 2 implicit-link-rgx rgx-result ( ca len +n2 +n1)
+       match>substring
+  debug? if cr ."   LINK-TEXT=" 2dup type then \ XXX INFORMER
+       link-text 2!
+       3 implicit-link-rgx rgx-result ( ca len +n2 +n1)
+       match>substring
+  debug? if cr ."   AFTER-MATCH=" 2dup type then \ XXX INFORMER
+       after-match 2!
+
+  [else] \ XXX NEW
+
   0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
   4dup match>implicit-link-text link-text   2!
   4dup match>before             before-match 2!
-       match>after              after-match  2! ;
+       match>after              after-match  2!
+
+  [then] ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
   \
@@ -477,12 +511,6 @@ rgx-compile 0= [if]
   \ markup and return the modified string _ca2 len2_; else do
   \ nothing.
 
-: match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
-  2dup match>len >r nip nip + r> >stringer ;
-  \ Extract from string _ca1 len1_ the link text of the explicit
-  \ link that starts at position _+n1_ and ends before position
-  \ _+n2_. Return the result _ca2 len2_ in the `stringer`.
-
 : prepare-constrained-code ( ca len -- )
   debug? if cr ." PREPARE-CONSTRAINED-CODE" 2dup type then \ XXX INFORMER
   2dup 1 constrained-code-rgx rgx-result ( ca len +n2 +n1)
@@ -494,10 +522,9 @@ rgx-compile 0= [if]
   debug? if cr ."   CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
        constrained-code 2!
        3 constrained-code-rgx rgx-result ( ca len +n2 +n1)
-      match>substring
+       match>substring
   debug? if cr ."   AFTER-MATCH=" 2dup type then \ XXX INFORMER
-       before-match 2!
-      after-match 2! ;
+       after-match 2! ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
 
