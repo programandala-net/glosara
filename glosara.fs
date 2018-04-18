@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.27.0-dev.0+201804171753" ;
+: version s" 0.27.0+201804181229" ;
 
 \ ==============================================================
 \ Description
@@ -284,17 +284,8 @@ variable entry-file
 \   borrows `0branch` from fig-Forth [...]
 \ ____
 
-true constant [improved-implicit-link-rgx] immediate
-  \ XXX TMP --
-
 rgx-create implicit-link-rgx
-
-[improved-implicit-link-rgx] [if]
   s" (.*)`(\S+)`(.*)" implicit-link-rgx
-  \ s" [^`]`\S+`[^`]" implicit-link-rgx \ XXX TODO --
-[else]
-  s" `\S+`" implicit-link-rgx
-[then]
 rgx-compile 0= [if]
   cr .( Compilation of regular expression)
   cr .( for implicit link failed on position ) . cr
@@ -431,9 +422,6 @@ rgx-compile 0= [if]
 
 : prepare-implicit-link ( ca len -- )
   debug? if cr ." PREPARE-IMPLICIT-LINK" 2dup type then \ XXX INFORMER
-
-  [improved-implicit-link-rgx] [if] \ XXX NEW
-
   2dup 1 implicit-link-rgx rgx-result ( ca len +n2 +n1)
        match>substring
   debug? if cr ."   BEFORE-MATCH=" 2dup type then \ XXX INFORMER
@@ -445,23 +433,11 @@ rgx-compile 0= [if]
        3 implicit-link-rgx rgx-result ( ca len +n2 +n1)
        match>substring
   debug? if cr ."   AFTER-MATCH=" 2dup type then \ XXX INFORMER
-       after-match 2!
-
-  [else] \ XXX NEW
-
-  0 implicit-link-rgx rgx-result ( ca len +n2 +n1)
-  4dup match>implicit-link-text link-text   2!
-  4dup match>before             before-match 2!
-       match>after              after-match  2!
-
-  [then] ;
+       after-match 2!  ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
   \
   \ XXX TODO -- Use the stack instead of variables.
-  \
-  \ XXX TODO -- Simplify: Use 3 groupings in the regex and get
-  \ them directly with `rgx-result`.
 
 : build-implicit-link ( -- ca len )
   before-match 2@ `<< s+ link-text 2@ entryname>common-id s+
