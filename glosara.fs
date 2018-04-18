@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.28.0+201804181604" ;
+: version s" 0.29.0+201804181612" ;
 
 \ ==============================================================
 \ Description
@@ -472,10 +472,7 @@ rgx-compile 0= [if]
 : build-constrained-code ( -- ca len )
   debug? if cr ." BUILD-CONSTRAINED-CODE " then \ XXX INFORMER
   before-match 2@ `` s+ constrained-code 2@ escaped s+ `` s+
-  cr ." HOLA1"
-  after-match 2@
-  cr ." HOLA2"
-  s+
+  after-match  2@ s+
   debug? if cr ." BUILD-CONSTRAINED-CODE" 2dup type then \ XXX INFORMER
   ;
   \ Build the constrained code from its pieces.
@@ -716,7 +713,7 @@ create (heading-markup) max-headings-level chars allot
   dup update-entry-line#
   dup end-of-header?   if end-header   exit then
       start-of-header? if start-header exit then
-  \ convert-constrained-code \ XXX TODO --
+  convert-constrained-code
   debug? if cr ." (PROCESS-ENTRY-LINE) before CONVERT-LINKS=" 2dup type then \ XXX INFORMER
   convert-links type cr ;
   \ Process line _ca len_, which is part of the contents

@@ -32,10 +32,6 @@ Add an option to use a prefix for link anchors. This way different
 glossaries with homonimous could be built apart and then combined into
 one single manual.
 
-== 2018-04-14
-
-Escape the constrained code.
-
 == 2018-04-17
 
 Combine `--annex` with the planned `--mode` option.
