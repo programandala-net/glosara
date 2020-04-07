@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.30.0+20180418" ;
+: version s" 0.31.0-dev.0.0+202004071849" ;
 
 \ ==============================================================
 \ Description
@@ -17,7 +17,7 @@
 \ ==============================================================
 \ Author and license
 
-\ Copyright (C) 2015, 2016, 2017, 2018 Marcos Cruz
+\ Copyright (C) 2015, 2016, 2017, 2018, 2020 Marcos Cruz
 \ (programandala.net)
 
 \ You may do whatever you want with this work, so long as you
@@ -91,6 +91,9 @@ variable annex
   \ Flag: annex mode? In annex mode, the input file is not a
   \ glossary but an annex, whose implicit links are converted to
   \ actual links into the glossary.
+
+variable sections
+  \ Flag: add section headings?
 
 : echo ( ca len -- )
   verbose @ if type cr else 2drop then ;
@@ -882,6 +885,15 @@ s" set annex mode: only convert the links"
 true              \ switch type
 arg.annex-option arguments arg-add-option
 
+\ Add the -s/--sections option:
+11 constant arg.sections-option
+'s'               \ short option
+s" sections"      \ long option
+s" add section headings before a new initial"
+                  \ description
+true              \ switch type
+arg.sections-option arguments arg-add-option
+
 : markers-option ( ca len -- )
   2dup first-name      dup ?marker starting-marker place
   /name 1 /string trim dup ?marker ending-marker   place ;
@@ -909,6 +921,9 @@ variable helped \ flag: help already shown?
 
 : annex-option ( -- )
   ['] process-annex-file ['] (process-file) defer! annex on ;
+
+: sections-option ( -- )
+  sections on s" Section headings are on" echo ;
 
 variable input-files# \ counter
 
@@ -938,16 +953,17 @@ variable tmp \ XXX TMP --
 
 : option ( n -- )
   case
-    arg.help-option    of help           endof
-    arg.version-option of version-option endof
-    arg.input-option   of input-option   endof
-    arg.output-option  of output-option  endof
-    arg.unique-option  of unique-option  endof
-    arg.verbose-option of verbose-option endof
-    arg.level-option   of level-option   endof
-    arg.markers-option of markers-option endof
-    arg.annex-option   of annex-option   endof
-    arg.non-option     of input-file     endof
+    arg.help-option     of help            endof
+    arg.version-option  of version-option  endof
+    arg.input-option    of input-option    endof
+    arg.output-option   of output-option   endof
+    arg.unique-option   of unique-option   endof
+    arg.verbose-option  of verbose-option  endof
+    arg.level-option    of level-option    endof
+    arg.markers-option  of markers-option  endof
+    arg.annex-option    of annex-option    endof
+    arg.sections-option of sections-option endof
+    arg.non-option      of input-file      endof
   endcase ;
 
 : option? ( -- n f )
