@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2018-04-18
+:revdate: 2020-04-07
 
 == 2017-02-15
 
@@ -52,3 +52,7 @@ Check explicit links.
 == 2018-04-18
 
 Use Gforth's `save-mem` or Galope's `>stringer`, not both of them.
+
+== 2020-04-07
+
+Add an option to create glossary sections, by initial.

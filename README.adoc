@@ -1,6 +1,6 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-10-20
+:revdate: 2020-04-07
 :linkattrs:
 
 == Description
@@ -21,8 +21,13 @@ it became an independent project.
 
 == Current status
 
-Glosara is being used to build the documentation of Solo Forth, and
-it's being completed and improved during the process.
+Glosara is very stable. It's being used to build the documentation of
+Solo Forth and other Forth projects of the author, and it's being
+completed and improved during the process.
 
-At the moment Glosara is not ready to be released because it depends
-on a Forth library that is being prepared for release.
+== Requirements
+
+Glosara uses some modules from the following libraries:
+
+- http://irdvo.github.io/ffl/[Forth Foundation Library, role="external"]
+- http://programandala.net/en.program.galope.html[Galope]
