@@ -56,3 +56,5 @@ Use Gforth's `save-mem` or Galope's `>stringer`, not both of them.
 == 2020-04-07
 
 Add an option to create glossary sections, by initial.
+
+Fix: `previous-initial` changes without reason.

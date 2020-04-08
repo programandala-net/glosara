@@ -2,7 +2,7 @@
 
 \ glosara.fs
 
-: version s" 0.31.0-dev.0.0+202004071849" ;
+: version s" 0.31.0-dev.1.0+202004080014" ;
 
 \ ==============================================================
 \ Description
@@ -626,17 +626,23 @@ s" }doc" ending-marker place
   \ Convert word name _ca1 len1_ to an Asciidoctor inline anchor
   \ _ca2 len2_, which is common to all homonymous entries.
 
-      variable headings-level
-1 constant min-headings-level
-6 constant max-headings-level
+variable entry-heading-level
 
-create (heading-markup) max-headings-level chars allot
-(heading-markup) max-headings-level '=' fill
+1 constant min-heading-level
+6 constant max-heading-level
 
-: heading-markup ( -- ca len )
-  (heading-markup) headings-level @ ;
+create (heading-markup) max-heading-level chars allot
+(heading-markup) max-heading-level '=' fill
 
-: .heading-markup ( -- ) heading-markup type space ;
+: entry-heading-markup ( -- ca len )
+  (heading-markup) entry-heading-level @ ;
+
+: section-heading-markup ( -- ca len )
+  entry-heading-markup 1- ;
+
+: .entry-heading-markup ( -- ) entry-heading-markup type space ;
+
+: .section-heading-markup ( -- ) section-heading-markup type space ;
 
 : common-anchor ( ca len -- )
   2dup entry-counter@ 1 = if   entryname>common-anchor type
@@ -644,21 +650,54 @@ create (heading-markup) max-headings-level chars allot
   \ If entry name _ca len_ is the first one with its name,
   \ create a common anchor for it.
 
-: heading-attr-list ( ca len -- )
+: entry-heading-attr-list ( ca len -- )
   cr ." [#" entryname>unique-id type ." ]" cr ;
   \ Create the Asciidoctor attribute list for entry name _ca1
   \ len1_. The attribute list contains only the corresponding
   \ id block attribute, which is unique for each entry.
 
-: heading-line ( ca len )
-  .heading-markup 2dup common-anchor escaped type cr ;
+: entry-heading-line ( ca len )
+  .entry-heading-markup 2dup common-anchor escaped type cr ;
   \ Create a glossary heading line for entry name _ca len_.
   \ The Asciidoctor inline macro `pass:[]` is used to force
   \ replacement of special characters of Forth names (e.g. '<')
   \ to HTML entities.
 
+variable previous-initial
+  \ The initial character of the previous entry.
+
+: new-initial? ( c -- f )
+  dup ." // XXX Current initial= " emit cr \ XXX INFORMER
+  \ XXX FIXME -- the contents of `previous-initial` change
+  \ without reason.
+  previous-initial @
+  dup ." // XXX Previous initial= " ?dup if emit else ." zero" then cr \ XXX INFORMER
+  over 
+  dup ." // XXX Updating the initial with: " ?dup if emit else ." zero" then cr \ XXX INFORMER
+  previous-initial ! <> ;
+  \ Is character _c_ the initial of the previous entry?
+
+: new-section ( c -- )
+  .section-heading-markup emit cr ;
+  \ Start a new glossary section for words with an initial _c_.
+
+: initial ( ca len -- c )
+  drop c@ ;
+  \ Return initial character _c_ of string _ca len_.
+
+: new-section? ( c -- f )
+  new-initial? sections @ and ;
+  \ Is a new section needed for the glossary entry initial _c_?
+
+: ?new-section ( ca len -- )
+  initial dup new-section? if new-section else drop then ;
+  \ If a new section is needed for entry glossary _ca len_,
+  \ create it. Else do nothing.
+
 : heading ( ca len -- )
-  2dup heading-attr-list heading-line ;
+  2dup ?new-section
+  2dup entry-heading-attr-list
+       entry-heading-line ;
   \ Create a glossary heading for entry name _ca len_.
   \
   \ Note: When the common anchor is created on its own line,
@@ -815,7 +854,7 @@ defer (process-file) ( fid -- )
 s" glosara" \ name
 s" [ OPTION | INPUT-FILE ] ..." \ usage
 version
-s" (C) 2015-2017 Marcos Cruz (programandala.net)" \ extra
+s" (C) 2015-2020 Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
 \ Add the default -?/--help option:
@@ -912,18 +951,25 @@ variable helped \ flag: help already shown?
 : unique-option ( -- )
   unique on s" Unique mode is on" echo ;
 
+: check-hierarchy ( -- )
+  sections @ entry-heading-level @ 1 = and
+  abort" Level 1 entry headings are incompatible with section headings" ;
+  \ Check the level of entry headings is compatible with section
+  \ headings.
+
 : level-option ( ca len -- )
   0. 2swap >number nip
   abort" Invalid headings level"
-  d>s dup min-headings-level max-headings-level 1+ within 0=
+  d>s dup min-heading-level max-heading-level 1+ within 0=
   abort" Headings level not in range 1..6"
-  headings-level ! ;
+  entry-heading-level ! check-hierarchy ;
 
 : annex-option ( -- )
   ['] process-annex-file ['] (process-file) defer! annex on ;
 
 : sections-option ( -- )
-  sections on s" Section headings are on" echo ;
+  sections on check-hierarchy
+  s" Section headings are on" echo ;
 
 variable input-files# \ counter
 
@@ -978,7 +1024,8 @@ variable tmp \ XXX TMP --
   delete-entry-files argc off entry-file off
   input-files# off verbose off output-filename off
   unique off annex off
-  2 headings-level ! ;
+  previous-initial off
+  2 entry-heading-level ! ;
 
 : options ( -- )
   begin option? while option repeat drop ;
