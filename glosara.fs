@@ -1,8 +1,9 @@
 #! /usr/bin/env gforth
+\ #! /usr/bin/env gforth-0.7.9_20191031
 
 \ glosara.fs
 
-: version s" 0.31.0-dev.1.0+202004080014" ;
+: version s" 0.31.0-dev.2.0+202004090210" ;
 
 \ ==============================================================
 \ Description
@@ -44,8 +45,8 @@ require ffl/rgx.fs \ regular expressions
 require galope/first-name.fs      \ `first-name`
 require galope/minus-leading.fs   \ `-leading`
 require galope/replaced.fs        \ `replaced`
-require galope/s-plus.fs          \ `s+`
-require galope/s-s-quote.fs       \ `ss"` \ XXX TMP --
+require galope/s-s-plus.fs        \ `ss+`
+\ require galope/s-s-quote.fs       \ `ss"` \ XXX TMP --
 require galope/slash-name.fs      \ `/name`
 require galope/stringer.fs        \ `stringer` \ XXX TMP --
 require galope/trim.fs            \ `trim`
@@ -102,8 +103,13 @@ variable sections
 \ ==============================================================
 \ Strings
 
-\ 1024 allocate-stringer
-here 1024 dup allot set-stringer
+\ 1024 64 * allocate-stringer
+here 1024 64 * dup allot set-stringer
+
+synonym s+ ss+
+  \ Overwrite the ordinary `s+`, which returns the contatenated
+  \ string in the heap, with `ss+`, which uses the `stringer`
+  \ instead.
 
 : c>hex ( c -- ca len )
   base @ >r hex s>d <# # # #> r> base ! ;
@@ -111,7 +117,20 @@ here 1024 dup allot set-stringer
   \ with its hex value.
 
 : string>hex ( ca1 len1 -- ca2 len2 )
-  s" " 2swap bounds do i c@ c>hex s+ loop ;
+  debug? if ." start STRING>HEX : " 2dup type cr then \ XXX INFORMER
+  s" " 2swap bounds
+  debug? if .s cr then \ XXX INFORMER
+  do
+  debug? if ." string : " 2dup type cr then \ XXX INFORMER
+    i c@ c>hex
+  debug? if ." hex : " 2dup type cr then \ XXX INFORMER
+    s+
+  \ debug? if ." result : " 2dup type cr then \ XXX INFORMER
+  debug? if ." result : " 2dup type cr then \ XXX INFORMER
+    loop
+  debug? if ." end STRING>HEX : " 2dup type cr then \ XXX INFORMER
+  debug? if ." second end STRING>HEX " then \ XXX INFORMER
+    ;
   \ Return a string _ca2 len2_ which consists of the hex values
   \ of the characters of string _ca1 len1_ (one 2-digit hex
   \ number per original character).
@@ -313,7 +332,14 @@ rgx-compile 0= [if]
 [then]
 
 : entryname>common-id ( ca1 len1 -- ca2 len2 )
-  string>hex s" entry" 2swap s+ ;
+  debug? if ." start ENTRYNAME>COMMON-ID : " 2dup type cr then \ XXX INFORMER
+  string>hex
+  debug? if ." in ENTRYNAME>COMMON-ID after STRING>HEX : " 2dup type cr then \ XXX INFORMER
+  s" entry" 2swap
+  debug? if ." in ENTRYNAME>COMMON-ID before S+ : " .s cr then \ XXX INFORMER
+  s+
+  debug? if ." end ENTRYNAME>COMMON-ID : " 2dup type cr then \ XXX INFORMER
+  ;
   \ Create a cross reference label _ca2 len2_ from entry name
   \ _ca1 len1_.
 
@@ -382,15 +408,15 @@ rgx-compile 0= [if]
   debug? if cr ." PREPARE-IMPLICIT-LINK" 2dup type then \ XXX INFORMER
   2dup 1 implicit-link-rgx rgx-result ( ca len +n2 +n1)
        match>substring
-  debug? if cr ."   BEFORE-MATCH=" 2dup type then \ XXX INFORMER
+  debug? if cr ."   before-match=" 2dup type then \ XXX INFORMER
        before-match 2!
   2dup 2 implicit-link-rgx rgx-result ( ca len +n2 +n1)
        match>substring
-  debug? if cr ."   LINK-TEXT=" 2dup type then \ XXX INFORMER
+  debug? if cr ."   link-text=" 2dup type then \ XXX INFORMER
        link-text 2!
        3 implicit-link-rgx rgx-result ( ca len +n2 +n1)
        match>substring
-  debug? if cr ."   AFTER-MATCH=" 2dup type then \ XXX INFORMER
+  debug? if cr ."   after-match=" 2dup type then \ XXX INFORMER
        after-match 2!  ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
@@ -412,7 +438,7 @@ rgx-compile 0= [if]
   true ;
 
 : convert-implicit-link ( ca1 len1 -- ca2 len2 )
-  debug? if cr ." IMPLICIT-LINK" 2dup type then \ XXX INFORMER
+  debug? if cr ." start CONVERT-IMPLICIT-LINK : " 2dup type then \ XXX INFORMER
   2dup prepare-implicit-link
   actual-implicit-link? if 2drop build-implicit-link then ;
   \ Convert the first implicit link (a word between backticks,
@@ -448,18 +474,18 @@ rgx-compile 0= [if]
   \ nothing.
 
 : prepare-constrained-code ( ca len -- )
-  debug? if cr ." PREPARE-CONSTRAINED-CODE" 2dup type then \ XXX INFORMER
+  debug? if cr ." start PREPARE-CONSTRAINED-CODE : " 2dup type then \ XXX INFORMER
   2dup 1 constrained-code-rgx rgx-result ( ca len +n2 +n1)
        match>substring
-  debug? if cr ."   BEFORE-MATCH=" 2dup type then \ XXX INFORMER
+  debug? if cr ."   before-match=" 2dup type then \ XXX INFORMER
        before-match 2!
   2dup 2 constrained-code-rgx rgx-result ( ca len +n2 +n1)
        match>substring
-  debug? if cr ."   CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
+  debug? if cr ."   constrained-code=" 2dup type then \ XXX INFORMER
        constrained-code 2!
        3 constrained-code-rgx rgx-result ( ca len +n2 +n1)
        match>substring
-  debug? if cr ."   AFTER-MATCH=" 2dup type then \ XXX INFORMER
+  debug? if cr ."   after-match=" 2dup type then \ XXX INFORMER
        after-match 2! ;
   \ Prepare the first implicit link found in string _ca len_
   \ by extracting its pieces into variables.
@@ -477,35 +503,35 @@ rgx-compile 0= [if]
   \ temporary markup with actual double backticks.
 
 : build-constrained-code ( -- ca len )
-  debug? if cr ." BUILD-CONSTRAINED-CODE " then \ XXX INFORMER
+  debug? if cr ." start BUILD-CONSTRAINED-CODE" cr then \ XXX INFORMER
   before-match 2@ `` s+ constrained-code 2@ escaped s+ `` s+
   after-match  2@ s+
-  debug? if cr ." BUILD-CONSTRAINED-CODE" 2dup type then \ XXX INFORMER
+  debug? if cr ." end BUILD-CONSTRAINED-CODE : " 2dup type cr then \ XXX INFORMER
   ;
   \ Build the constrained code from its pieces.
 
 : (constrained-code ( ca1 len1 -- ca2 len2 )
-  debug? if cr ." (CONSTRAINED-CODE " then \ XXX INFORMER
+  debug? if cr ." start (CONSTRAINED-CODE : " 2dup type cr then \ XXX INFORMER
   prepare-constrained-code build-constrained-code ;
   \ Manage the first constrained code (a text between double
   \ backticks, e.g. ``dup + drop``) contained in entry line _ca1
   \ len1_.
 
 : constrained-code? ( ca len -- f )
-  debug? if cr .s cr ." CONSTRAINED-CODE? " then \ XXX INFORMER
+  debug? if cr .s cr ." start CONSTRAINED-CODE? : " 2dup type cr then \ XXX INFORMER
   constrained-code-rgx rgx-csearch -1 >
-  debug? if cr ." End of CONSTRAINED-CODE?=" dup . then \ XXX INFORMER
+  debug? if cr ." end CONSTRAINED-CODE? : " dup . cr then \ XXX INFORMER
   ;
   \ Does string _ca len_ contain constrained code?
 
 : convert-constrained-code ( ca len -- ca' len' )
-  debug? if cr .s cr ." CONVERT-CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
+  debug? if ." start CONVERT-CONSTRAINED-CODE : " 2dup type cr .s cr then \ XXX INFORMER
   begin  2dup constrained-code?
   while  (constrained-code
   repeat
-  debug? if cr .s cr ." CONVERT-CONSTRAINED-CODE before restore=" 2dup type then \ XXX INFORMER
+  debug? if cr .s cr ." in CONVERT-CONSTRAINED-CODE before RESTORE-DOUBLE-BACKTICKS : " 2dup type then \ XXX INFORMER
   restore-double-backticks
-  debug? if cr ." End of CONVERT-CONSTRAINED-CODE=" 2dup type then \ XXX INFORMER
+  debug? if cr ." end CONVERT-CONSTRAINED-CODE : " 2dup type cr then \ XXX INFORMER
   ;
   \ If the entry line _ca len_ contains constrained code, i.e.
   \ code sourrounded by double backticks, escape the especial
@@ -542,11 +568,11 @@ rgx-compile 0= [if]
   \ identical to _ca len_.
 
 : convert-links ( ca len -- ca' len' )
-  debug? if cr ." CONVERT-LINKS=" 2dup type then \ XXX INFORMER
+  debug? if cr ." start CONVERT-LINKS : " 2dup type cr then \ XXX INFORMER
   preserve-double-backticks convert-explicit-links
                             convert-implicit-links finish-links
   restore-double-backticks
-  debug? if cr ." End of CONVERT-LINKS=" 2dup type then \ XXX INFORMER
+  debug? if cr ." end CONVERT-LINKS : " 2dup type cr then \ XXX INFORMER
   ;
   \ If the entry line _ca len_ contains links,
   \ convert them to Asciidoctor markup and return the modified
@@ -663,18 +689,19 @@ create (heading-markup) max-heading-level chars allot
   \ replacement of special characters of Forth names (e.g. '<')
   \ to HTML entities.
 
-variable previous-initial
+0 value previous-initial
   \ The initial character of the previous entry.
 
 : new-initial? ( c -- f )
-  dup ." // XXX Current initial= " emit cr \ XXX INFORMER
-  \ XXX FIXME -- the contents of `previous-initial` change
-  \ without reason.
-  previous-initial @
-  dup ." // XXX Previous initial= " ?dup if emit else ." zero" then cr \ XXX INFORMER
-  over 
-  dup ." // XXX Updating the initial with: " ?dup if emit else ." zero" then cr \ XXX INFORMER
-  previous-initial ! <> ;
+  ." // XXX Current initial= " ?dup if emit else ." zero" then cr \ XXX INFORMER
+  previous-initial
+  ." // XXX Previous initial= " ?dup if emit else ." zero" then cr \ XXX INFORMER
+  .s cr \ XXX INFORMER
+  over
+  ." // XXX Updating the initial with: " ?dup if emit else ." zero" then cr \ XXX INFORMER
+  to previous-initial
+  previous-initial ." // XXX The initial is: " ?dup if emit else ." zero" then cr \ XXX INFORMER
+  <> ;
   \ Is character _c_ the initial of the previous entry?
 
 : new-section ( c -- )
@@ -717,32 +744,32 @@ variable previous-initial
   header-boundary ;
 
 : start-header ( ca len -- )
-  \ debug? if cr ." START-HEADER=" 2dup type then \ XXX INFORMER
+  \ debug? if ." start START-HEADER : " 2dup type cr then \ XXX INFORMER
   1 entry-line# +!
-  \ debug? if cr ." In START-HEADER (0) " .s then \ XXX INFORMER
+  \ debug? if ." in START-HEADER (0) " .s cr then \ XXX INFORMER
   2dup first-name
-  \ debug? if cr ." In START-HEADER (1) " .s then \ XXX INFORMER
+  \ debug? if ." in START-HEADER (1) " .s cr then \ XXX INFORMER
   2dup create-entry-file
-  \ debug? if cr ." In START-HEADER (2) " .s then \ XXX INFORMER
+  \ debug? if ." in START-HEADER (2) " .s cr then \ XXX INFORMER
   to outfile-id
-  \ debug? if cr ." In START-HEADER (3) " .s then \ XXX INFORMER
+  \ debug? if ." in START-HEADER (3) " .s cr then \ XXX INFORMER
                        heading cr
-  \ debug? if cr ." In START-HEADER (4) " .s then \ XXX INFORMER
+  \ debug? if ." in START-HEADER (4) " .s cr then \ XXX INFORMER
        header-boundary
-  \ debug? if cr ." End of START-HEADER " .s then \ XXX INFORMER
+  \ debug? if ." end START-HEADER " .s cr then \ XXX INFORMER
   ;
   \ Start an entry header, whose first line is _ca len_.
 
 : start-of-header? ( -- f )
-  debug? if cr ." START-OF-HEADER? " then \ XXX INFORMER
+  debug? if ." start START-OF-HEADER?" cr then \ XXX INFORMER
   entry-line# @ 2 =
-  debug? if cr ." START-OF-HEADER?=" dup . then \ XXX INFORMER
+  debug? if ." end START-OF-HEADER? : " dup . cr then \ XXX INFORMER
   ;
 
 : end-of-header? ( len -- f )
-  debug? if cr ." END-OF-HEADER? " then \ XXX INFORMER
+  debug? if ." start END-OF-HEADER?" cr then \ XXX INFORMER
   0= processing-header? and
-  debug? if cr ." END-OF-HEADER?=" dup . then \ XXX INFORMER
+  debug? if ." end END-OF-HEADER? : " dup . cr then \ XXX INFORMER
   ;
 
 : update-entry-line# ( len -- )
@@ -1024,7 +1051,7 @@ variable tmp \ XXX TMP --
   delete-entry-files argc off entry-file off
   input-files# off verbose off output-filename off
   unique off annex off
-  previous-initial off
+  0 to previous-initial
   2 entry-heading-level ! ;
 
 : options ( -- )
