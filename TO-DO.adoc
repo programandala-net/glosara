@@ -58,3 +58,9 @@ Use Gforth's `save-mem` or Galope's `>stringer`, not both of them.
 Fix the method of creating glossary sections: The change of the entry
 initial must be checked after the files have been created and sorted,
 because the entries are unsorted in the source.
+
+Idea: Run the conversion after parsing all options, instead of doing
+it in `option` (by calling `input-file` or `input-option`). Now the
+problem is the order matters, e.g. "--dir" only works if followed by
+"--input" or an input file. But the advantage of the current method is
+several inputs can be processed.

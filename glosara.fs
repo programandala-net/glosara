@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara
 
-: version s" 0.31.0-dev.3.0+202004120108" ;
+: version s" 0.31.0-dev.4.0+202004120155" ;
 
 \ ==============================================================
 \ Description
@@ -164,7 +164,41 @@ wordlist constant counters-wordlist
 \ ==============================================================
 \ Files
 
-: temp-directory ( -- ca len ) s" /tmp/glosara/" ;
+: default-temp-dir ( -- ca len ) s" /tmp/glosara/" ;
+
+256 chars constant /directory
+  \ Max length of a directory.
+
+create temp-dir> /directory allot
+  \ Storage of the temporary directory.
+
+: !dir ( ca len a -- ) >r s" /" s+ r> place ;
+  \ Store directory _ca len_ into _a_. A trailing slash is added
+  \ first, just in case.
+
+: temp-dir! ( ca len -- ) temp-dir> !dir ;
+  \ Store _ca len_ into the temporary directory.
+
+default-temp-dir temp-dir!
+  \ Use the default temporary directory.
+
+: temp-dir ( -- ca len ) temp-dir> count ;
+
+-529 constant file-exists-error#
+ 493 constant dir-permissions \ 0o755 (= #493)
+
+: make-temp-dir ( -- )
+  temp-dir dir-permissions mkdir-parents
+  dup file-exists-error# = if drop else throw then ;
+  \ Make the temporary directory with its parents and
+  \ permissions 0o755 (= #493).
+
+make-temp-dir
+  \ XXX REMARK -- Create the default temporary directory, even
+  \ if an specific one could be specified in the command line.
+  \ The reason is the main program is executed when some options
+  \ are found in the command line. Therefore the default
+  \ directory must be ready just in case.
 
 : entry-filename-prefix ( -- ca len ) s" glosara.entry." ;
 
@@ -242,7 +276,7 @@ create null-filename /basefilename allot
 : entryname>filename ( ca1 len1 -- ca2 len2 )
   entryname>basefilename
   entry-filename-prefix 2swap s+
-  temp-directory 2swap s+ ;
+  temp-dir 2swap s+ ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
   \ its temporary filename _ca2 len2_, including the path.
 
@@ -268,7 +302,7 @@ variable entry-file
   \ If a previous entry file is open, close it.
 
 : entry-files-pattern ( -- ca len )
-  temp-directory entry-filename-prefix s+ s" *" s+ ;
+  temp-dir entry-filename-prefix s+ s" *" s+ ;
   \ Wildcard pattern for all temporary entry files.
 
 : delete-entry-files ( -- )
@@ -574,16 +608,16 @@ variable header-status
 : processing-header? ( -- f )
   header-status @ 1 = ;
 
-16 constant /marker
+16 chars constant /marker
   \ Maximum length of the starting and ending markers, in chars.
 
 : ?marker ( len -- )
   /marker > abort" Marker too long" ;
 
-create starting-marker /marker chars allot
+create starting-marker /marker allot
   \ Starting marker storage.
 
-create ending-marker /marker chars allot
+create ending-marker /marker allot
   \ Ending marker storage.
 
 s" doc{" starting-marker place
@@ -868,7 +902,7 @@ arg.verbose-option arguments arg-add-option
 9 constant arg.markers-option
 'm'                       \ short option
 s" markers"               \ long option
-s" set markers, e.g. 'glossary{ }glossary'; default: `doc{ }doc`"
+s" set markers, e.g. -m 'glossary{ }glossary'; default: 'doc{ }doc'"
                           \ description
 false                     \ switch type
 arg.markers-option arguments arg-add-option
@@ -890,6 +924,15 @@ s" add section headings before a new initial"
                   \ description
 true              \ switch type
 arg.sections-option arguments arg-add-option
+
+\ Add the -d/--dir option:
+12 constant arg.dir-option
+'d'               \ short option
+s" dir"           \ long option
+s" set temp directory; default: " default-temp-dir s+
+                  \ description
+false             \ switch type
+arg.dir-option arguments arg-add-option
 
 : markers-option ( ca len -- )
   2dup first-name      dup ?marker starting-marker place
@@ -929,6 +972,10 @@ variable helped \ flag: help already shown?
   sections on check-hierarchy
   s" Section headings are on" echo ;
 
+: dir-option ( ca len -- )
+  temp-dir! make-temp-dir ;
+  \ Set the temporary directory _ca len_.
+
 variable input-files# \ counter
 
 : input-file ( ca len -- )
@@ -967,6 +1014,7 @@ variable tmp \ XXX TMP --
     arg.markers-option  of markers-option  endof
     arg.annex-option    of annex-option    endof
     arg.sections-option of sections-option endof
+    arg.dir-option      of dir-option      endof
     arg.non-option      of input-file      endof
   endcase ;
 
@@ -977,24 +1025,13 @@ variable tmp \ XXX TMP --
 \ ==============================================================
 \ Boot
 
--529 constant file-exists-error#
- 493 constant dir-permissions \ 0o755 (= #493)
-
-: make-temp-dir ( -- )
-  temp-directory dir-permissions mkdir-parents
-  dup file-exists-error# = if drop else throw then ;
-  \ Make the temporary directory with its parents and
-  \ permissions 0o755 (= #493).
-
 : init ( -- )
   helped off
   delete-entry-files argc off entry-file off
   input-files# off verbose off output-filename off
   unique off annex off
   previous-initial off
-  2 entry-heading-level !
-  \ make-temp-dir
-  ;
+  2 entry-heading-level ! ;
 
 : options ( -- )
   begin option? while option repeat drop ;
