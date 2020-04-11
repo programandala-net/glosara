@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2020-04-07
+:revdate: 2020-04-12
 
 == 2017-02-15
 
@@ -53,8 +53,8 @@ Check explicit links.
 
 Use Gforth's `save-mem` or Galope's `>stringer`, not both of them.
 
-== 2020-04-07
+== 2020-04-12
 
-Add an option to create glossary sections, by initial.
-
-Fix: `previous-initial` changes without reason.
+Fix the method of creating glossary sections: The change of the entry
+initial must be checked after the files have been created and sorted,
+because the entries are unsorted in the source.
