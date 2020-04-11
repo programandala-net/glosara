@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara
 
-: version s" 0.31.0-dev.2.1+202004120032" ;
+: version s" 0.31.0-dev.3.0+202004120108" ;
 
 \ ==============================================================
 \ Description
@@ -164,7 +164,7 @@ wordlist constant counters-wordlist
 \ ==============================================================
 \ Files
 
-: temp-directory ( -- ca len ) s" /tmp/" ;
+: temp-directory ( -- ca len ) s" /tmp/glosara/" ;
 
 : entry-filename-prefix ( -- ca len ) s" glosara.entry." ;
 
@@ -654,7 +654,7 @@ variable previous-initial
   \ The initial character of the previous entry.
 
 : new-initial? ( c -- f )
-  previous-initial @ over <> ;
+  previous-initial @ over previous-initial ! <> ;
   \ Is character _c_ the initial of the previous entry?
 
 : new-section ( c -- )
@@ -977,13 +977,24 @@ variable tmp \ XXX TMP --
 \ ==============================================================
 \ Boot
 
+-529 constant file-exists-error#
+ 493 constant dir-permissions \ 0o755 (= #493)
+
+: make-temp-dir ( -- )
+  temp-directory dir-permissions mkdir-parents
+  dup file-exists-error# = if drop else throw then ;
+  \ Make the temporary directory with its parents and
+  \ permissions 0o755 (= #493).
+
 : init ( -- )
   helped off
   delete-entry-files argc off entry-file off
   input-files# off verbose off output-filename off
   unique off annex off
   previous-initial off
-  2 entry-heading-level ! ;
+  2 entry-heading-level !
+  \ make-temp-dir
+  ;
 
 : options ( -- )
   begin option? while option repeat drop ;
