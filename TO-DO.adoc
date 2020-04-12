@@ -49,5 +49,5 @@ problem is the order matters, e.g. "--dir" only works if followed by
 "--input" or an input file. But the advantage of the current method is
 several inputs can be processed.
 
-Fix: `delete-temp-files` is executed also when `--help` or `--version`
+Fix: `cat` is executed also when `--help` or `--version`
 are used, displaying an error because there's no file to be deleted.

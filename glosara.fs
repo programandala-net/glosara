@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.6.0+202004121924" ;
+: version s" 0.31.0-dev.7.0+202004130107" ;
 
 \ ==============================================================
 \ Description
@@ -1071,18 +1071,14 @@ variable input-files# \ counter
   1 input-files# +!
   s" Processing input file " 2over s+ echo process-file ;
 
-variable tmp \ XXX TMP --
-
 : input-option ( ca len -- )
   s" Processing input files list " 2over s+ echo
-  r/o open-file throw tmp !
-  begin  tmp @ read-line?
+  r/o open-file throw {: file-id :}
+  begin  file-id read-line?
   while  save-mem input-file
-  repeat tmp @ close-file throw ;
-  \ XXX FIXME -- The system crashes when the stack is
-  \ used to hold the _fid_. That's why `tmp` is used at the
-  \ moment. The problem is something is left on the data stack
-  \ during the parsing.
+  repeat file-id close-file throw ;
+  \ Manage input-option _ca len_, which a file containing a list
+  \ of input files.
 
 : output-option ( ca len -- )
   output-filename @ abort" More than one output file specified"
@@ -1127,12 +1123,12 @@ variable tmp \ XXX TMP --
 : options ( -- )
   begin option? while option repeat drop ;
 
-: fine? ( -- f )
+: done? ( -- f )
   input-files# @ 0> helped @ or ;
-  \ Fine options?
+  \ Something done after parsing all of the options?
 
 : run ( -- )
-  init options fine? if finnish else help-option then ;
+  init options done? if finnish else help-option then ;
 
 run bye
 
