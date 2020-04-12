@@ -2,9 +2,9 @@
 \ glosara.fs
 
 \ ==============================================================
-\ Glosara
+\ Glosara {{{1
 
-: version s" 0.31.0-dev.4.0+202004120155" ;
+: version s" 0.31.0-dev.5.0+202004121651" ;
 
 \ ==============================================================
 \ Description
@@ -43,15 +43,15 @@ require ffl/rgx.fs \ regular expressions
 \ From the Galope library
 \ (http://programandala.net/en.program.galope.html)
 
+require galope/c-to-str.fs        \ `c>str`
 require galope/first-name.fs      \ `first-name`
 require galope/minus-leading.fs   \ `-leading`
 require galope/replaced.fs        \ `replaced`
 require galope/s-s-plus.fs        \ `ss+`
-\ require galope/s-s-quote.fs       \ `ss"` \ XXX TMP --
 require galope/slash-name.fs      \ `/name`
-require galope/stringer.fs        \ `stringer` \ XXX TMP --
-require galope/tilde-tilde.fs     \ `` \ XXX TMP --
+require galope/stringer.fs        \ `stringer`
 require galope/trim.fs            \ `trim`
+require galope/unslurp-file.fs    \ `unslurp-file`
 
 \ ==============================================================
 \ Dependencies
@@ -162,15 +162,15 @@ wordlist constant counters-wordlist
   \ name _ca len_.
 
 \ ==============================================================
-\ Files
+\ Files {{{1
+
+256 chars constant /path
+  \ Max length of a path, directory or filename.
 
 : default-temp-dir ( -- ca len ) s" /tmp/glosara/" ;
 
-256 chars constant /directory
-  \ Max length of a directory.
-
-create temp-dir> /directory allot
-  \ Storage of the temporary directory.
+create temp-dir> /path allot
+  \ Storage for the temporary directory.
 
 : !dir ( ca len a -- ) >r s" /" s+ r> place ;
   \ Store directory _ca len_ into _a_. A trailing slash is added
@@ -200,7 +200,9 @@ make-temp-dir
   \ are found in the command line. Therefore the default
   \ directory must be ready just in case.
 
-: entry-filename-prefix ( -- ca len ) s" glosara.entry." ;
+: filename-prefix ( -- ca len ) s" glosara.entry." ;
+
+: /filename-prefix ( -- len ) filename-prefix nip ;
 
 2variable output-filename
 
@@ -231,17 +233,19 @@ max-word-length 2 * chars constant /basefilename
 
 create null-filename /basefilename allot
        null-filename /basefilename '0' fill
+  \ A string full of '0' characters, used to pad the base filename
+  \ of each glossary entry file.­
 
 : entryname>count-suffix ( ca1 len2 -- ca2 len2 )
   entry-counter unique @ 0= and c>hex s" -" 2swap s+ ;
   \ Convert entry name _ca1 len2_ to its filename counter suffix
   \ _ca2 len2_.
 
-: slashes>hyphens ( ca len -- ca' len' )
+: slashes>hyphens ( ca len -- ca' len )
   s" -" s" /" replaced ;
   \ Replace slashes in _ca len_ with hyphens.
 
-: dots>hyphens ( ca len -- ca' len' )
+: dots>hyphens ( ca len -- ca' len )
   s" -" s" ." replaced ;
   \ Replace dots in _ca len_ with hyphens.
 
@@ -262,22 +266,47 @@ create null-filename /basefilename allot
   \ Convert entry name _ca1 len2_ to its filename suffix _ca2
   \ len2_.
 
+: extension+ ( ca1 len1 -- ca2 len2 )
+  s" .adoc" s+ ;
+  \ Add the Asciidoctor filename extension to filename _ca1
+  \ len1_, resulting _ca2 len2_.
+
 : entryname>basefilename ( ca1 len1 -- ca2 len2 )
   2dup string>hex
   dup >r null-filename /basefilename r> -
   dup 0< abort" Entry name too long" s+
-  2swap entryname>suffix s+ ;
+  2swap entryname>suffix s+ extension+ ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
   \ its temporary filename _ca2 len2_. The filename consists of
   \ `max-word-length` 8-bit hex numbers that represent the
   \ characters of the entry name, with trailing '0' digits to
   \ its maximum length.
 
-: entryname>filename ( ca1 len1 -- ca2 len2 )
-  entryname>basefilename
-  entry-filename-prefix 2swap s+
+: complete-filename ( ca1 len1 -- ca2 len2 )
+  filename-prefix 2swap s+
   temp-dir 2swap s+ ;
+  \ Complete filename _ca1 len1_ with common prefix and path.
+
+: entryname>filename ( ca1 len1 -- ca2 len2 )
+  entryname>basefilename complete-filename ;
   \ Convert a glossary entry name _ca1 len1_ (a Forth word) to
+  \ its temporary filename _ca2 len2_, including the path.
+
+: section>basefilename ( c -- ca2 len2 )
+  string>hex
+  dup >r null-filename /basefilename r> -
+  dup 0< abort" Section name too long" s+
+  s" -----SECTION-HEADING" s+
+  extension+ ;
+  \ Convert a glossary section title _ca1 len1_ (a character) to
+  \ its temporary filename _ca2 len2_. The filename consists of
+  \ `max-word-length` 8-bit hex numbers that represent the
+  \ characters of the entry name, with trailing '0' digits to
+  \ its maximum length.
+
+: section>filename ( ca1 len1 -- ca2 len2 )
+  section>basefilename complete-filename ;
+  \ Convert a glossary section title _ca1 len1_ (a character) to
   \ its temporary filename _ca2 len2_, including the path.
 
 variable entry-file
@@ -301,16 +330,16 @@ variable entry-file
   \ Create a file for glossary entry name _ca len_.
   \ If a previous entry file is open, close it.
 
-: entry-files-pattern ( -- ca len )
-  temp-dir entry-filename-prefix s+ s" *" s+ ;
+: temp-files-pattern ( -- ca len )
+  temp-dir filename-prefix s+ s" *" s+ ;
   \ Wildcard pattern for all temporary entry files.
 
-: delete-entry-files ( -- )
-  s" rm -f " entry-files-pattern s+ system ;
+: delete-temp-files ( -- )
+  s" rm -f " temp-files-pattern s+ system ;
   \ Delete all temporary entry files.
 
 \ ==============================================================
-\ Links (cross references)
+\ Links (cross references) {{{1
 
 \ Glosara recognizes any string without spaces and between
 \ backticks (the Asciidoctor markup for monospace) as an
@@ -590,7 +619,7 @@ rgx-compile 0= [if]
   \ double backtick in its name...
 
 \ ==============================================================
-\ Source parser
+\ Source parser {{{1
 
 255 constant /line-buffer
 
@@ -663,8 +692,6 @@ create (heading-markup) max-heading-level chars allot
 
 : .entry-heading-markup ( -- ) entry-heading-markup type space ;
 
-: .section-heading-markup ( -- ) section-heading-markup type space ;
-
 : common-anchor ( ca len -- )
   2dup entry-counter@ 1 = if   entryname>common-anchor type
                           else 2drop then ;
@@ -684,32 +711,7 @@ create (heading-markup) max-heading-level chars allot
   \ replacement of special characters of Forth names (e.g. '<')
   \ to HTML entities.
 
-variable previous-initial
-  \ The initial character of the previous entry.
-
-: new-initial? ( c -- f )
-  previous-initial @ over previous-initial ! <> ;
-  \ Is character _c_ the initial of the previous entry?
-
-: new-section ( c -- )
-  .section-heading-markup emit cr ;
-  \ Start a new glossary section for words with an initial _c_.
-
-: initial ( ca len -- c )
-  drop c@ ;
-  \ Return initial character _c_ of string _ca len_.
-
-: new-section? ( c -- f )
-  new-initial? sections @ and ;
-  \ Is a new section needed for the glossary entry initial _c_?
-
-: ?new-section ( ca len -- )
-  initial dup new-section? if  new-section else drop then ;
-  \ If a new section is needed for entry glossary _ca len_,
-  \ create it. Else do nothing.
-
 : heading ( ca len -- )
-  2dup ?new-section
   2dup entry-heading-attr-list
        entry-heading-line ;
   \ Create a glossary heading for entry name _ca len_.
@@ -811,7 +813,7 @@ defer (process-file) ( fid -- )
   \ Process the glossary or annex file _ca len_.
 
 \ ==============================================================
-\ Glossary
+\ Glossary {{{1
 
 : (>file) ( ca1 len1 -- ca2 len2 )
   s"  > " s+ output-filename 2@ s+ ;
@@ -826,21 +828,88 @@ defer (process-file) ( fid -- )
   \ _ca2 len2_. Otherwise do nothing.
 
 : cat ( -- ca len )
-  s" cat " entry-files-pattern s+ ;
+  s" cat " temp-files-pattern s+ ;
   \ Return the shell `cat` command that concatenates all the
   \ glossary entry files and sends them to standard output.
 
-: create-glossary ( -- )
+variable previous-initial
+  \ The initial character of the previous entry.
+
+: new-initial? ( c -- f )
+  previous-initial @ over previous-initial ! <> ;
+  \ Is character _c_ the initial of the previous entry?
+
+: section-heading ( c -- ca len )
+  >r s\" \n\n" section-heading-markup s+
+     s"  " s+
+  r> c>str s+
+     s\" \n\n" s+ ;
+
+: section-file ( c -- ca len )
+  c>str section>filename ;
+  \ Convert initial _c_ to section filename _ca len_.
+
+: new-section ( c -- )
+  dup >r section-heading
+      r> section-file unslurp-file ;
+  \ Create a glossary section file for words with an initial
+  \ _c_. The file contains the heading markup. The filename is a
+  \ variant of the glossary entry files, to make sure it's
+  \ sorted in the right place.
+
+: filename>initial ( ca len -- c )
+  /filename-prefix /string drop 2
+  base @ >r hex evaluate r> base ! ;
+  \ Return the initial character _c_ of the glossary entry whose
+  \ file is _ca len_.
+
+: entry-file? ( ca len -- f )
+  filename-prefix string-prefix? ;
+  \ Is _ca len_ an entry file?
+
+: (?new-section) ( ca len -- )
+  filename>initial dup new-initial? if new-section else drop then ;
+  \ If a new section is needed before the entry glossary whose file is
+  \ _ca len_, create it. Else do nothing.
+
+: ?new-section ( ca len -- )
+  2dup entry-file? if (?new-section) else 2drop then ;
+  \ If _ca len_ is an entry filename, and a new section is
+  \ needed before its corresponding glossary entry, create it.
+  \ Else do nothing.
+
+create file> /path allot
+  \ Storage for each filename read from the directory.
+
+: create-glossary-sections ( -- )
+  temp-dir open-dir throw {: dir-id :}
+  begin  file> /path dir-id read-dir throw
+  while  file> swap ?new-section
+  repeat drop dir-id close-dir throw ;
+  \ Create the glossary sections by reading each glossary
+  \ entry file from the temporary directory, comparing its
+  \ initial (coded in hex after the filename prefix) with
+  \ the previous one and, if so, creating a new file with
+  \ the section heading markup and a proper name.
+
+: join-glossary-files ( -- )
   cat >file system ;
-  \ Send all the glossary entry files to standard output or to
-  \ the output file, if specified.
+  \ Send all the glossary files to standard output
+  \ (or to the output file, if specified).
+
+: create-glossary ( -- )
+  sections @ if create-glossary-sections then
+  join-glossary-files ;
+  \ Create the glossary sections, if needed.
+  \ Then send all the glossary files to standard output
+  \ (or to the output file, if specified).
 
 : finnish ( -- )
   annex @ 0= if create-glossary then ;
   \ Finnish the task, by creating the glossary file, if needed.
 
 \ ==============================================================
-\ Argument parser
+\ Argument parser {{{1
 
 \ Create a new argument parser:
 s" glosara" \ name
@@ -1023,11 +1092,11 @@ variable tmp \ XXX TMP --
   \ Parse the next option. Is it right?
 
 \ ==============================================================
-\ Boot
+\ Boot {{{1
 
 : init ( -- )
   helped off
-  delete-entry-files argc off entry-file off
+  delete-temp-files argc off entry-file off
   input-files# off verbose off output-filename off
   unique off annex off
   previous-initial off
