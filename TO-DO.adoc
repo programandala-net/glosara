@@ -48,6 +48,3 @@ it in `option` (by calling `input-file` or `input-option`). Now the
 problem is the order matters, e.g. "--dir" only works if followed by
 "--input" or an input file. But the advantage of the current method is
 several inputs can be processed.
-
-Fix: `cat` is executed also when `--help` or `--version`
-are used, displaying an error because there's no file to be deleted.

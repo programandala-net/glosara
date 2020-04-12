@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.7.0+202004130107" ;
+: version s" 0.31.0-dev.7.1+202004130125" ;
 
 \ ==============================================================
 \ Description
@@ -1123,12 +1123,19 @@ variable input-files# \ counter
 : options ( -- )
   begin option? while option repeat drop ;
 
-: done? ( -- f )
-  input-files# @ 0> helped @ or ;
-  \ Something done after parsing all of the options?
+: file? ( -- f )
+  input-files# @ 0> ;
+  \ Any input file was handled?
+
+: no-info? ( -- f )
+  helped @ 0= ;
+  \ No help/version option was used?
 
 : run ( -- )
-  init options done? if finnish else help-option then ;
+  init options
+  file? if   finnish
+        else no-info? if help-option then
+        then ;
 
 run bye
 
