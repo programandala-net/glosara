@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.5.0+202004121651" ;
+: version s" 0.31.0-dev.6.0+202004121924" ;
 
 \ ==============================================================
 \ Description
@@ -912,95 +912,114 @@ create file> /path allot
 \ Argument parser {{{1
 
 \ Create a new argument parser:
-s" glosara" \ name
-s" [ OPTION | INPUT-FILE ] ..." \ usage
+s" glosara" \ command
+s\"  { [option...] { <input-file> | <-i file> } [option...] ...}\n\n"
+s\" Note: both `input-file` and the `-i` option start the program\n" s+
+s\" immediately with the currently parsed options." s+
+  \ usage
 version
 s" (C) 2015-2020 Marcos Cruz (programandala.net)" \ extra
 arg-new constant arguments
 
-\ Add the default -?/--help option:
-arguments arg-add-help-option
+\ Overwrite the default help option:
+'?' \ short option
+s" help" \ long option
+s" Show this help."
+  \ description
+true \ switch type
+arg.help-option arguments arg-add-option
 
-\ Add the default --version option:
-arguments arg-add-version-option
+\ Overwrite the default version option:
+'V' \ short option
+s" version" \ long option
+s" Show version info."
+  \ description
+true \ switch type
+arg.version-option arguments arg-add-option
 
 \ Add the -i/--input option:
 4 constant arg.input-option
-'i'               \ short option
-s" input"         \ long option
-s" set file containing a list of input files (one per line)"
-                  \ description
-false             \ switch type
+'i' \ short option
+s" input" \ long option
+s" Set a file containing a list of input files (one per line). "
+s" This option, as well as an explicit input file, " s+
+s" starts the program immediately, " s+
+s" using only the options that were specified before it." s+
+  \ description
+false \ switch type
 arg.input-option arguments arg-add-option
 
 \ Add the -l/--level option:
 5 constant arg.level-option
-'l'                                 \ short option
-s" level"                           \ long option
-s" set the headings level (1..6); "
-s" must be used before the input files or the --input option" s+
-                                    \ description
-false                               \ switch type
+'l' \ short option
+s" level" \ long option
+s" Set the headings level (1..6)." \ description
+false \ switch type
 arg.level-option arguments arg-add-option
 
 \ Add the -o/--output option:
 6 constant arg.output-option
-'o'                     \ short option
-s" output"              \ long option
-s" set the output file" \ description
-false                   \ switch type
+'o' \ short option
+s" output" \ long option
+s" Set the output file." \ description
+false \ switch type
 arg.output-option arguments arg-add-option
 
 \ Add the -u/--unique option:
 7 constant arg.unique-option
-'u'                           \ short option
-s" unique"                    \ long option
-s" reject duplicated entries" \ description
-true                          \ switch type
+'u' \ short option
+s" unique" \ long option
+s" Flag: reject the duplicated entries." \ description
+true \ switch type
 arg.unique-option arguments arg-add-option
 
 \ Add the -v/--verbose option:
 8 constant arg.verbose-option
-'v'                       \ short option
-s" verbose"               \ long option
-s" activate verbose mode" \ description
-true                      \ switch type
+'v' \ short option
+s" verbose" \ long option
+s" Flag: activate the verbose mode." \ description
+true \ switch type
 arg.verbose-option arguments arg-add-option
 
 \ Add the -m/--markers option:
 9 constant arg.markers-option
-'m'                       \ short option
-s" markers"               \ long option
-s" set markers, e.g. -m 'glossary{ }glossary'; default: 'doc{ }doc'"
-                          \ description
-false                     \ switch type
+'m' \ short option
+s" markers" \ long option
+s" Set the glossary entry markers used in the source code; "
+s\" default: \"doc{ }doc\"." s+
+  \ description
+false \ switch type
 arg.markers-option arguments arg-add-option
 
 \ Add the -a/--annex option:
 10 constant arg.annex-option
-'a'               \ short option
-s" annex"         \ long option
-s" set annex mode: only convert the links"
-                  \ description
-true              \ switch type
+'a' \ short option
+s" annex" \ long option
+s" Flag: set the annex mode, "
+s" i.e. just convert the links of the given file, " s+
+s" but don't extract glossary entries from it." s+
+  \ description
+true \ switch type
 arg.annex-option arguments arg-add-option
 
 \ Add the -s/--sections option:
 11 constant arg.sections-option
-'s'               \ short option
-s" sections"      \ long option
-s" add section headings before a new initial"
-                  \ description
-true              \ switch type
+'s' \ short option
+s" sections" \ long option
+s" Flag: add a section heading before every "
+s" glossary entry that starts with a new initial." s+
+  \ description
+true \ switch type
 arg.sections-option arguments arg-add-option
 
 \ Add the -d/--dir option:
 12 constant arg.dir-option
-'d'               \ short option
-s" dir"           \ long option
-s" set temp directory; default: " default-temp-dir s+
-                  \ description
-false             \ switch type
+'d' \ short option
+s" dir" \ long option
+s" Set the temp directory; default: "
+default-temp-dir s+ s" ." s+
+  \ description
+false \ switch type
 arg.dir-option arguments arg-add-option
 
 : markers-option ( ca len -- )
@@ -1009,9 +1028,10 @@ arg.dir-option arguments arg-add-option
   \ Set the starting and ending markers, specified by string _ca
   \ len_. The markers are separated by at least one space.
 
-variable helped \ flag: help already shown?
+variable helped
+  \ Flag: help or version already shown?
 
-: help ( -- )
+: help-option ( -- )
   arguments arg-print-help helped on ;
   \ Show the help.
 
@@ -1069,11 +1089,12 @@ variable tmp \ XXX TMP --
   save-mem output-filename 2! ;
 
 : version-option ( -- )
-  arguments arg-print-version ;
+  ." Glosara " arguments arg>version @ str-get type cr
+  helped on ;
 
 : option ( n -- )
   case
-    arg.help-option     of help            endof
+    arg.help-option     of help-option     endof
     arg.version-option  of version-option  endof
     arg.input-option    of input-option    endof
     arg.output-option   of output-option   endof
@@ -1096,7 +1117,8 @@ variable tmp \ XXX TMP --
 
 : init ( -- )
   helped off
-  delete-temp-files argc off entry-file off
+  delete-temp-files
+  argc off entry-file off
   input-files# off verbose off output-filename off
   unique off annex off
   previous-initial off
@@ -1110,7 +1132,7 @@ variable tmp \ XXX TMP --
   \ Fine options?
 
 : run ( -- )
-  init options fine? if finnish else help then ;
+  init options fine? if finnish else help-option then ;
 
 run bye
 
