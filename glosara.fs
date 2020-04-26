@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.7.1+202004130125" ;
+: version s" 0.31.0-dev.8.00202004262115" ;
 
 \ ==============================================================
 \ Description
@@ -102,6 +102,16 @@ variable sections
   verbose @ if type cr else 2drop then ;
   \ Display the string _ca len_ if `verbose` is on.
 
+false value inline-anchors?
+  \ Flag: create inline anchors in the glossary entry titles?
+  \
+  \ As of 2020-04-26, inline anchors have a bug in the current
+  \ version of Asciidoctor. See:
+  \ <https://github.com/asciidoctor/asciidoctor/issues/3633>.a
+  \
+  \ Until the Asciidoctor bug is fixed, this flag is used to
+  \ choose the action of the deferred word `heading`.
+
 \ ==============================================================
 \ Strings
 
@@ -194,11 +204,11 @@ default-temp-dir temp-dir!
   \ permissions 0o755 (= #493).
 
 make-temp-dir
-  \ XXX REMARK -- Create the default temporary directory, even
-  \ if an specific one could be specified in the command line.
-  \ The reason is the main program is executed when some options
-  \ are found in the command line. Therefore the default
-  \ directory must be ready just in case.
+  \ Create the default temporary directory, even if an specific
+  \ one may be specified in the command line. The reason is the
+  \ main program is executed when some options are found in the
+  \ command line. Therefore the default directory must be ready,
+  \ just in case.
 
 : filename-prefix ( -- ca len ) s" glosara.entry." ;
 
@@ -690,7 +700,8 @@ create (heading-markup) max-heading-level chars allot
 : section-heading-markup ( -- ca len )
   entry-heading-markup 1- ;
 
-: .entry-heading-markup ( -- ) entry-heading-markup type space ;
+: .entry-heading-markup ( -- )
+  entry-heading-markup type space ;
 
 : common-anchor ( ca len -- )
   2dup entry-counter@ 1 = if   entryname>common-anchor type
@@ -704,22 +715,48 @@ create (heading-markup) max-heading-level chars allot
   \ len1_. The attribute list contains only the corresponding
   \ id block attribute, which is unique for each entry.
 
-: entry-heading-line ( ca len )
-  .entry-heading-markup 2dup common-anchor escaped type cr ;
+: entry-heading-line-with-inline-anchor ( ca len -- )
+  .entry-heading-markup 2dup common-anchor
+                             escaped type cr ;
   \ Create a glossary heading line for entry name _ca len_.
-  \ The Asciidoctor inline macro `pass:[]` is used to force
-  \ replacement of special characters of Forth names (e.g. '<')
-  \ to HTML entities.
 
-: heading ( ca len -- )
+: heading-with-inline-anchor ( ca len -- )
   2dup entry-heading-attr-list
-       entry-heading-line ;
-  \ Create a glossary heading for entry name _ca len_.
+       entry-heading-line-with-inline-anchor ;
+  \ Create a glossary heading for entry name _ca len_, with an
+  \ inline anchor.
   \
   \ Note: When the common anchor is created on its own line,
   \ before the attribute list of the heading, Asciidoctor
   \ ignores it during the conversion to HTML. That's why it's
   \ created as part of the heading line.
+
+: entry-heading-line-without-inline-anchor ( ca len -- )
+  2dup common-anchor cr .entry-heading-markup
+       escaped type cr ;
+  \ Create a glossary heading line for entry name _ca len_.
+
+: open-block-marker ( -- )
+  ." --" cr ;
+
+: empty-block ( -- )
+  open-block-marker open-block-marker ;
+
+: heading-without-inline-anchor ( ca len -- )
+  2dup entry-heading-attr-list empty-block
+       entry-heading-line-without-inline-anchor ;
+  \ Create a glossary heading for entry name _ca len_, without an
+  \ inline anchor. Instead, an empty open block is created, in
+  \ order to assign it the second anchor.
+
+defer heading ( ca len -- )
+  \ Create a glossary heading for entry name _ca len_.
+
+inline-anchors? [if]   ' heading-with-inline-anchor
+                [else] ' heading-without-inline-anchor
+                [then] is heading
+  \ Set `heading` to execute the proper action, depending on
+  \ `inline-anchors?`.
 
 : code-block ( ca len -- )
   ." ----" cr type cr ;
