@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.8.00202004262115" ;
+: version s" 0.31.0-dev.9.0+202004270111" ;
 
 \ ==============================================================
 \ Description
@@ -443,18 +443,18 @@ rgx-compile 0= [if]
 : >>` ( -- ca len ) s" CLOSECROSSREFERENCEANDBACKTICK" ;
 
 : escaped ( ca len -- ca' len' )
-  s" &#35;"       s" #"   replaced
-  s" &#34;"       s\" \q" replaced
-  s" &#42;"       s" *"   replaced
-  s" &#45;"       s" -"   replaced
-  s" &#60;"       s" <"   replaced
-  s" &#61;"       s" ="   replaced
-  s" &#62;"       s" >"   replaced
-  s" {backslash}" s" \"   replaced ;
+  s" &#34;"  s\" \q" replaced
+  s" &#35;"  s" #"   replaced
+  s" &#42;"  s" *"   replaced
+  s" &#45;"  s" -"   replaced
+  s" &#60;"  s" <"   replaced
+  s" &#61;"  s" ="   replaced
+  s" &#62;"  s" >"   replaced
+  s" &#92;"  s" \"   replaced ;
   \ Escape special characters in string _ca len_, returning
   \ the result string _ca' len'_. Escaping certain characters is
   \ needed in order to prevent troubles during the conversion of
-  \ Asciidoctor into HTML and PDF.
+  \ Asciidoctor into EPUB, HTML and PDF.
 
 : match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
   2dup - >r nip nip + r> >stringer ;
