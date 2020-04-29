@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.9.0+202004270111" ;
+: version s" 0.31.0-dev.9.1+202004291951" ;
 
 \ ==============================================================
 \ Description
@@ -102,21 +102,10 @@ variable sections
   verbose @ if type cr else 2drop then ;
   \ Display the string _ca len_ if `verbose` is on.
 
-false value inline-anchors?
-  \ Flag: create inline anchors in the glossary entry titles?
-  \
-  \ As of 2020-04-26, inline anchors have a bug in the current
-  \ version of Asciidoctor. See:
-  \ <https://github.com/asciidoctor/asciidoctor/issues/3633>.a
-  \
-  \ Until the Asciidoctor bug is fixed, this flag is used to
-  \ choose the action of the deferred word `heading`.
-
 \ ==============================================================
 \ Strings
 
-\ 1024 64 * allocate-stringer
-here 1024 64 * dup allot set-stringer
+here 1024 64 * dup chars allot set-stringer
 
 synonym s+ ss+
   \ Overwrite the ordinary `s+`, which returns the contatenated
@@ -682,9 +671,10 @@ s" }doc" ending-marker place
   \ If line _ca len_ is the start of a glossary entry, start it.
 
 : entryname>common-anchor ( ca1 len1 -- ca2 len2 )
-  s" [[" 2swap entryname>common-id s+ s" ]]" s+ ;
-  \ Convert word name _ca1 len1_ to an Asciidoctor inline anchor
-  \ _ca2 len2_, which is common to all homonymous entries.
+  s" [#" 2swap entryname>common-id s+ s" ]" s+ ;
+  \ Convert word name _ca1 len1_ to an Asciidoctor anchor
+  \ _ca2 len2_, which is common to all homonymous entries, using
+  \ the format of an attribute list with an identifier.
 
 variable entry-heading-level
 
@@ -703,60 +693,34 @@ create (heading-markup) max-heading-level chars allot
 : .entry-heading-markup ( -- )
   entry-heading-markup type space ;
 
-: common-anchor ( ca len -- )
-  2dup entry-counter@ 1 = if   entryname>common-anchor type
-                          else 2drop then ;
-  \ If entry name _ca len_ is the first one with its name,
-  \ create a common anchor for it.
-
-: entry-heading-attr-list ( ca len -- )
-  cr ." [#" entryname>unique-id type ." ]" cr ;
-  \ Create the Asciidoctor attribute list for entry name _ca1
-  \ len1_. The attribute list contains only the corresponding
-  \ id block attribute, which is unique for each entry.
-
-: entry-heading-line-with-inline-anchor ( ca len -- )
-  .entry-heading-markup 2dup common-anchor
-                             escaped type cr ;
-  \ Create a glossary heading line for entry name _ca len_.
-
-: heading-with-inline-anchor ( ca len -- )
-  2dup entry-heading-attr-list
-       entry-heading-line-with-inline-anchor ;
-  \ Create a glossary heading for entry name _ca len_, with an
-  \ inline anchor.
-  \
-  \ Note: When the common anchor is created on its own line,
-  \ before the attribute list of the heading, Asciidoctor
-  \ ignores it during the conversion to HTML. That's why it's
-  \ created as part of the heading line.
-
-: entry-heading-line-without-inline-anchor ( ca len -- )
-  2dup common-anchor cr .entry-heading-markup
-       escaped type cr ;
-  \ Create a glossary heading line for entry name _ca len_.
-
 : open-block-marker ( -- )
   ." --" cr ;
 
 : empty-block ( -- )
   open-block-marker open-block-marker ;
 
-: heading-without-inline-anchor ( ca len -- )
-  2dup entry-heading-attr-list empty-block
-       entry-heading-line-without-inline-anchor ;
-  \ Create a glossary heading for entry name _ca len_, without an
-  \ inline anchor. Instead, an empty open block is created, in
-  \ order to assign it the second anchor.
+: common-anchor ( ca len -- )
+  entryname>common-anchor type cr ;
+  \ Create a common anchor for entry name _ca len_, i.e. an
+  \ anchor common to all its homonyms. The common anchor does
+  \ not include the source filename of the entry.
 
-defer heading ( ca len -- )
-  \ Create a glossary heading for entry name _ca len_.
+: ?common-anchor ( ca len -- )
+  2dup entry-counter@ 1 = if   common-anchor empty-block
+                          else 2drop then ;
+  \ If entry name _ca len_ is the first one with its name,
+  \ create a common anchor for it, i.e. an anchor common to all
+  \ its homonyms. The anchor is associated to an empty block, in
+  \ order to make it possible to link it from other chapters.
 
-inline-anchors? [if]   ' heading-with-inline-anchor
-                [else] ' heading-without-inline-anchor
-                [then] is heading
-  \ Set `heading` to execute the proper action, depending on
-  \ `inline-anchors?`.
+: unique-anchor ( ca len -- )
+  ." [[" entryname>unique-id type ." ]]" cr ;
+  \ Create the unique anchor of entry name _ca1 len1_.
+
+: heading ( ca len -- )
+  2dup ?common-anchor .entry-heading-markup
+  2dup escaped type space unique-anchor cr ;
+  \ Create a glossary entry heading for entry name _ca len_.
 
 : code-block ( ca len -- )
   ." ----" cr type cr ;
