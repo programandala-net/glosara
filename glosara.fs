@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.9.2+202005010038" ;
+: version s" 0.31.0-dev.9.3+202011280038" ;
 
 \ ==============================================================
 \ Description
@@ -227,7 +227,7 @@ variable output-file \ output file identifier
   output-file @ ?dup if   close-file throw
                      then set-standard-output ;
 
-                       31 constant max-word-length
+                      255 constant max-word-length
 max-word-length 2 * chars constant /basefilename
 
 create null-filename /basefilename allot
