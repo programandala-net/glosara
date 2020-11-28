@@ -1,6 +1,6 @@
 = Glosara to-do list
 :author: Marcos Cruz (programandala.net)
-:revdate: 2020-04-13
+:revdate: 2020-05-13
 
 == 2017-02-15
 
@@ -21,7 +21,7 @@ Make `max-word-length` configurable.
 == 2017-11-19
 
 Add an option to use a prefix for link anchors. This way different
-glossaries with homonimous could be built apart and then combined into
+glossaries with homonims could be built apart and then combined into
 one single manual.
 
 == 2018-04-17
@@ -48,3 +48,34 @@ it in `option` (by calling `input-file` or `input-option`). Now the
 problem is the order matters, e.g. "--dir" only works if followed by
 "--input" or an input file. But the advantage of the current method is
 several inputs can be processed.
+
+== 2020-05-06
+
+Change the location of `preserve-double-backticks`
+`restore-double-backticks` and `finish-links` in order to make lower
+level words independent, easier to test.
+
+== 2020-05-12
+
+In verbose mode, display the homonyms (entry name and source file).
+
+== 2020-05-13
+
+Confirm this problem in Solo Forth:
+
+This explicit link is ignored:
+
+----
+  \ | `<<src-lib-prog-editor-specforth-fs, b>>` ``( -- )``
+  \ | Used after `<<src-lib-prog-editor-specforth-fs, f>>` to
+  \ backup the cursor by the length of the most recent text.
+----
+
+But this way it works:
+
+----
+  \ | `<<src-lib-prog-editor-specforth-fs, b>>`
+  \ ``( -- )``
+  \ | Used after `<<src-lib-prog-editor-specforth-fs, f>>` to
+  \ backup the cursor by the length of the most recent text.
+----
