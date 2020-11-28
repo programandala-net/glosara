@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.9.1+202004291951" ;
+: version s" 0.31.0-dev.9.2+202005010038" ;
 
 \ ==============================================================
 \ Description
@@ -432,7 +432,7 @@ rgx-compile 0= [if]
 : >>` ( -- ca len ) s" CLOSECROSSREFERENCEANDBACKTICK" ;
 
 : escaped ( ca len -- ca' len' )
-  s" &#34;"  s\" \q" replaced
+  s" {quot}"  s\" \q" replaced
   s" &#35;"  s" #"   replaced
   s" &#42;"  s" *"   replaced
   s" &#45;"  s" -"   replaced
@@ -444,6 +444,15 @@ rgx-compile 0= [if]
   \ the result string _ca' len'_. Escaping certain characters is
   \ needed in order to prevent troubles during the conversion of
   \ Asciidoctor into EPUB, HTML and PDF.
+  \
+  \ XXX TODO --
+  \ XXX UNDER DEVELOPMENT -- Testing.
+  \ Remark: Replacing quotes with "&#34;" makes the "&#" in
+  \ "&#34;" be rendered as entities in the target formats.
+  \ Replacing quotes with Asciidoctor's attribute `{quot}`,
+  \ whose default value is "&#34;", works fine. Leaving quotes
+  \ untouched seems to work fine as well, but could cause
+  \ missing IDs.
 
 : match>substring ( ca1 len1 +n2 +n1 -- ca2 len2 )
   2dup - >r nip nip + r> >stringer ;
@@ -525,7 +534,7 @@ rgx-compile 0= [if]
        3 constrained-code-rgx rgx-result ( ca len +n2 +n1)
        match>substring
        after-match 2! ;
-  \ Prepare the first implicit link found in string _ca len_
+  \ Prepare the first constrained code found in string _ca len_
   \ by extracting its pieces into variables.
 
 : `` ( -- ca len ) s" DOUBLEBACKTICKSWEREHERE" ;
@@ -587,7 +596,9 @@ rgx-compile 0= [if]
   \ Does string _ca len_ contain an explicit link?
 
 : convert-explicit-links ( ca len -- ca' len' )
-  begin 2dup explicit-link? while convert-explicit-link repeat ;
+  begin  2dup explicit-link?
+  while  convert-explicit-link
+  repeat ;
   \ If the entry line _ca len_ contains explicit and unfinished
   \ Asciidoctor links, finish them and return the modified
   \ string _ca' len'_; otherwise do nothing, and _ca' len'_ is
