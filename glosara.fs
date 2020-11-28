@@ -4,7 +4,7 @@
 \ ==============================================================
 \ Glosara {{{1
 
-: version s" 0.31.0-dev.9.3+202011280038" ;
+: version s" 0.31.0-dev.9.4+202011282101" ;
 
 \ ==============================================================
 \ Description
@@ -227,8 +227,13 @@ variable output-file \ output file identifier
   output-file @ ?dup if   close-file throw
                      then set-standard-output ;
 
-                      255 constant max-word-length
+                       64 constant max-word-length
 max-word-length 2 * chars constant /basefilename
+  \ The calculated filename needs 2 hex bytes per every character
+  \ of the word name, plus the length of its source filename, which is
+  \ added as a suffix. Therefore `max-word-length` must be chosen
+  \ to keep the actual final filename length in the limit allowed by
+  \ the file system.
 
 create null-filename /basefilename allot
        null-filename /basefilename '0' fill
