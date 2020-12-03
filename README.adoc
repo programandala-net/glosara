@@ -1,6 +1,6 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2020-04-13
+:revdate: 2020-12-03
 :linkattrs:
 
 == Description
@@ -11,13 +11,20 @@ glossary and modules documentation out of the sources and build the
 documents in http://asciidoctor.org[Asciidoctor,role="external"]
 format, with cross references.
 
-== Brief history
+== Brief history of the code
 
-Glosara started in 2015-09 as part of
+2015-09: The code was started as part of
 http://programandala.net/en.program.solo_forth.html[Solo Forth]
 (http://github.com/programandala-net/solo-forth[Solo Forth in
 GitHub]), in order to build its documentation, but a few months later
 it became an independent project.
+
+2016-04-28: A Git repository was created from the development backups
+in order to preserve its evolution from the start and resume the
+development.
+
+2020-12-03: The Git repository was converted to
+http://fossil-scm.org[Fossil]. GitHub will be used only as a mirror.
 
 == Current status
 
