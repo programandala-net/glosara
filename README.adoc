@@ -1,6 +1,6 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2020-12-03
+:revdate: 2020-12-24
 :linkattrs:
 
 == Description
@@ -11,26 +11,13 @@ glossary and modules documentation out of the sources and build the
 documents in http://asciidoctor.org[Asciidoctor,role="external"]
 format, with cross references.
 
-== Brief history of the code
-
-2015-09: The code was started as part of
-http://programandala.net/en.program.solo_forth.html[Solo Forth]
-(http://github.com/programandala-net/solo-forth[Solo Forth in
-GitHub]), in order to build its documentation, but a few months later
-it became an independent project.
-
-2016-04-28: A Git repository was created from the development backups
-in order to preserve its evolution from the start and resume the
-development.
-
-2020-12-03: The Git repository was converted to
-http://fossil-scm.org[Fossil]. GitHub will be used only as a mirror.
-
 == Current status
 
 Glosara is very stable. It's being used to build the documentation of
-Solo Forth and other Forth projects of the author, and it's being
-completed and improved during the process.
+http://programandala.net/en.program.solo_forth.html[Solo Forth],
+http://programandala.net/en.program.galope.html[Galope] and other
+Forth projects of the author, and it's being completed and improved
+during the process.
 
 == Requirements
 
@@ -65,3 +52,18 @@ immediately with the currently parsed options.
                  starts with a new initial.
   -d, --dir      Set the temp directory; default: /tmp/glosara/.
 ----
+
+== Brief history of the code
+
+2015-09: The code was started as part of
+http://programandala.net/en.program.solo_forth.html[Solo Forth] in
+order to build its documentation, but a few months later it became an
+independent project.
+
+2016-04-28: A Git repository was created from the development backups
+and uploaded to GitHub in order to preserve its evolution from the
+start and resume the development.
+
+2020-12-03: The Git repository was converted to a
+http://fossil.programandala.net/glosara[Fossil repository], keeping
+http://github.com/programandala-net/glosara[GitHub] as a mirror.
