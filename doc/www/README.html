@@ -1,0 +1,93 @@
+<div class='fossil-doc' data-title='README'>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Glosara is a glosser for Forth sources, though it could be used with
+other programming languages as well.  Its goal is to extract the
+glossary and modules documentation out of the sources and build the
+documents in <a href="http://asciidoctor.org" class="external">Asciidoctor</a>
+format, with cross references.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_brief_history_of_the_code">Brief history of the code</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>2015-09: The code was started as part of
+<a href="http://programandala.net/en.program.solo_forth.html">Solo Forth</a>
+(<a href="http://github.com/programandala-net/solo-forth">Solo Forth in
+GitHub</a>), in order to build its documentation, but a few months later
+it became an independent project.</p>
+</div>
+<div class="paragraph">
+<p>2016-04-28: A Git repository was created from the development backups
+in order to preserve its evolution from the start and resume the
+development.</p>
+</div>
+<div class="paragraph">
+<p>2020-12-03: The Git repository was converted to
+<a href="http://fossil-scm.org">Fossil</a>. GitHub will be used only as a mirror.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_current_status">Current status</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Glosara is very stable. It&#8217;s being used to build the documentation of
+Solo Forth and other Forth projects of the author, and it&#8217;s being
+completed and improved during the process.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_requirements">Requirements</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Glosara uses some modules from the following libraries:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="http://irdvo.github.io/ffl/" class="external">Forth Foundation Library</a></p>
+</li>
+<li>
+<p><a href="http://programandala.net/en.program.galope.html">Galope</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_usage">Usage</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre>Usage: glosara  { [option...] { &lt;input-file&gt; | &lt;-i file&gt; } [option...] ...}
+
+Note: both `input-file` and the `-i` option start the program
+immediately with the currently parsed options.
+
+  -?, --help     Show this help.
+  -V, --version  Show version info.
+  -i, --input    Set a file containing a list of input files (one per line).
+                 This option, as well as an explicit input file, starts the
+                 program immediately, using only the options that were
+                 specified before it.
+  -l, --level    Set the headings level (1..6).
+  -o, --output   Set the output file.
+  -u, --unique   Flag: reject the duplicated entries.
+  -v, --verbose  Flag: activate the verbose mode.
+  -m, --markers  Set the glossary entry markers used in the source code;
+                 default: "doc{ }doc".
+  -a, --annex    Flag: set the annex mode, i.e. just convert the links of the
+                 given file, but don't extract glossary entries from it.
+  -s, --sections Flag: add a section heading before every glossary entry that
+                 starts with a new initial.
+  -d, --dir      Set the temp directory; default: /tmp/glosara/.</pre>
+</div>
+</div>
+</div>
+</div></div>
