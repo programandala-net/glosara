@@ -1,4 +1,4 @@
-Copyright (C) 2015, 2016, 2017, 2018 Marcos Cruz
+Copyright (C) 2015, 2016, 2017, 2018, 2020, 2023  Marcos Cruz
 (programandala.net)
 
 You may do whatever you want with this work, so long as you

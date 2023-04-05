@@ -1,6 +1,6 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2020-12-24
+:revdate: 2023-04-05
 :linkattrs:
 
 == Description
@@ -53,17 +53,22 @@ immediately with the currently parsed options.
   -d, --dir      Set the temp directory; default: /tmp/glosara/.
 ----
 
-== Brief history of the code
+== Brief history of the code and its repository
 
 2015-09: The code was started as part of
 http://programandala.net/en.program.solo_forth.html[Solo Forth] in
 order to build its documentation, but a few months later it became an
 independent project.
 
-2016-04-28: A Git repository was created from the development backups
-and uploaded to GitHub in order to preserve its evolution from the
-start and resume the development.
+2016-04-28: A Git repository was created out of the development
+backups and uploaded to GitHub in order to preserve the evolution of
+the code from the start and resume its development.
 
-2020-12-03: The Git repository was converted to a
-http://fossil.programandala.net/glosara[Fossil repository], keeping
-http://github.com/programandala-net/glosara[GitHub] as a mirror.
+2020-12-03: The Git repository was converted to
+https://fossil-scm.org[Fossil], keeping the
+http://github.com/programandala-net/glosara[GitHub repository] as a
+mirror.
+
+2023-04-05: The repository was converted to
+https://mercurial-scm.org[Mercurial], enabling a better interaction
+with GitHub.
