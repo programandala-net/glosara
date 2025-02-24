@@ -1,6 +1,6 @@
 = Glosara
 :author: Marcos Cruz (programandala.net)
-:revdate: 2023-04-05
+:revdate: 2025-02-24
 :linkattrs:
 
 == Description
@@ -8,23 +8,27 @@
 Glosara is a glosser for Forth sources, though it could be used with
 other programming languages as well.  Its goal is to extract the
 glossary and modules documentation out of the sources and build the
-documents in http://asciidoctor.org[Asciidoctor,role="external"]
+documents in http://asciidoctor.org[Asciidoctor, role="external"]
 format, with cross references.
 
 == Current status
 
 Glosara is very stable. It's being used to build the documentation of
-http://programandala.net/en.program.solo_forth.html[Solo Forth],
-http://programandala.net/en.program.galope.html[Galope] and other
-Forth projects of the author, and it's being completed and improved
-during the process.
+http://programandala.net/en.program.solo_forth.html[Solo Forth]
+(https://hg.sr.ht/~programandala_net/solo_forth[Solo Forth in
+SourceHut]), http://programandala.net/en.program.galope.html[Galope]
+(https://hg.sr.ht/~programandala_net/galope[Galope in SourceHut]) and
+other Forth projects of the author, and it's being completed and
+improved during the process.
 
 == Requirements
 
 Glosara uses some modules from the following libraries:
 
-- http://irdvo.github.io/ffl/[Forth Foundation Library, role="external"]
+- http://irdvo.github.io/ffl/[Forth Foundation Library,
+  role="external"]
 - http://programandala.net/en.program.galope.html[Galope]
+  (https://hg.sr.ht/~programandala_net/galope[Galope in SourceHut])
 
 == Usage
 
@@ -55,20 +59,25 @@ immediately with the currently parsed options.
 
 == Brief history of the code and its repository
 
-2015-09: The code was started as part of
-http://programandala.net/en.program.solo_forth.html[Solo Forth] in
-order to build its documentation, but a few months later it became an
-independent project.
+- 2015-09: The code was started as part of
+  http://programandala.net/en.program.solo_forth.html[Solo Forth]
+  (https://hg.sr.ht/~programandala_net/solo_forth[Solo Forth in
+  SourceHut]) in order to build its documentation, but a few months
+  later it became an independent project.
 
-2016-04-28: A Git repository was created out of the development
-backups and uploaded to GitHub in order to preserve the evolution of
-the code from the start and resume its development.
+- 2016-04-28: A Git repository was created out of the development
+  backups and uploaded to
+  http://github.com/programandala-net/glosara[GitHub] in order to
+  preserve the evolution of the code from the start and resume its
+  development.
 
-2020-12-03: The Git repository was converted to
-https://fossil-scm.org[Fossil], keeping the
-http://github.com/programandala-net/glosara[GitHub repository] as a
-mirror.
+- 2020-12-03: The Git repository was converted to
+  https://fossil-scm.org[Fossil], keeping GitHub as a mirror.
 
-2023-04-05: The repository was converted to
-https://mercurial-scm.org[Mercurial], enabling a better interaction
-with GitHub.
+- 2023-04-05: The Fossil repository was converted to
+  https://mercurial-scm.org[Mercurial], enabling a better interaction
+  with GitHub.
+
+- 2025-02-23: The Mercurial repository was uploaded to
+  https://hg.sr.ht/~programandala_net/glosara[SourceHut], keeping
+  GitHub as a mirror.

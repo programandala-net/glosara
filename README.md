@@ -10,10 +10,12 @@ and modules documentation out of the sources and build the documents in
 ## Current status
 
 Glosara is very stable. It’s being used to build the documentation of
-[Solo Forth](http://programandala.net/en.program.solo_forth.html),
-[Galope](http://programandala.net/en.program.galope.html) and other
-Forth projects of the author, and it’s being completed and improved
-during the process.
+[Solo Forth](http://programandala.net/en.program.solo_forth.html) ([Solo
+Forth in SourceHut](https://hg.sr.ht/~programandala_net/solo_forth)),
+[Galope](http://programandala.net/en.program.galope.html) ([Galope in
+SourceHut](https://hg.sr.ht/~programandala_net/galope)) and other Forth
+projects of the author, and it’s being completed and improved during the
+process.
 
 ## Requirements
 
@@ -21,7 +23,8 @@ Glosara uses some modules from the following libraries:
 
 - [Forth Foundation Library](http://irdvo.github.io/ffl/)
 
-- [Galope](http://programandala.net/en.program.galope.html)
+- [Galope](http://programandala.net/en.program.galope.html) ([Galope in
+  SourceHut](https://hg.sr.ht/~programandala_net/galope))
 
 ## Usage
 
@@ -50,19 +53,25 @@ Glosara uses some modules from the following libraries:
 
 ## Brief history of the code and its repository
 
-2015-09: The code was started as part of [Solo
-Forth](http://programandala.net/en.program.solo_forth.html) in order to
-build its documentation, but a few months later it became an independent
-project.
+- 2015-09: The code was started as part of [Solo
+  Forth](http://programandala.net/en.program.solo_forth.html) ([Solo
+  Forth in SourceHut](https://hg.sr.ht/~programandala_net/solo_forth))
+  in order to build its documentation, but a few months later it became
+  an independent project.
 
-2016-04-28: A Git repository was created out of the development backups
-and uploaded to GitHub in order to preserve the evolution of the code
-from the start and resume its development.
+- 2016-04-28: A Git repository was created out of the development
+  backups and uploaded to
+  [GitHub](http://github.com/programandala-net/glosara) in order to
+  preserve the evolution of the code from the start and resume its
+  development.
 
-2020-12-03: The Git repository was converted to
-[Fossil](https://fossil-scm.org), keeping the [GitHub
-repository](http://github.com/programandala-net/glosara) as a mirror.
+- 2020-12-03: The Git repository was converted to
+  [Fossil](https://fossil-scm.org), keeping GitHub as a mirror.
 
-2023-04-05: The repository was converted to
-[Mercurial](https://mercurial-scm.org), enabling a better interaction
-with GitHub.
+- 2023-04-05: The Fossil repository was converted to
+  [Mercurial](https://mercurial-scm.org), enabling a better interaction
+  with GitHub.
+
+- 2025-02-23: The Mercurial repository was uploaded to
+  [SourceHut](https://hg.sr.ht/~programandala_net/glosara), keeping
+  GitHub as a mirror.
