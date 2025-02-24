@@ -4,7 +4,7 @@
 
 # By Marcos Cruz (programandala.net), 2020, 2023, 2025.
 
-# Last modified: 20250224T1738+0100.
+# Last modified: 20250224T1750+0100.
 # See change log at the end of the file.
 
 # Requirements {{{1
@@ -19,7 +19,7 @@
 .PHONY: all
 all: doc
 
-readme_title = Couplement Forth
+readme_title = Glosara
 
 include Makefile.readme
 
